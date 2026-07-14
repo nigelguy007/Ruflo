@@ -170,7 +170,7 @@ See [`references/studio_output_custom_prompts.md`](references/studio_output_cust
 
 ## Critical Async Behavior
 
-> **Async output rule:** For Studio generations (especially **Audio Overview** —  5-10 min), DO NOT wait for completion. The user's session will time out.
+> **Async output rule:** For Studio generations (especially **Audio Overview** — 5-10 min), DO NOT wait for completion. The user's session will time out.
 >
 > Workflow: Click Generate → confirm generation has started via screenshot → tell the user "Generation in progress — NotebookLM will notify you when ready" → **end the task.**
 
