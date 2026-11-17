@@ -21,52 +21,73 @@ Hyperresearch is a Python package that installs a deep research pipeline (an ent
 
 ## When to use / when not to
 - Use: a question that warrants 30 minutes to several hours and needs each citation checked against stored source text.
-- Use: one deduplicated search across papers, books, trials, filings and economic series (`hpr scholar search`), or reuse of a vault built by earlier runs.
-- Do not use: a quick answer or a moderate report with a chosen hosted model; prefer `open-deep-research`. Even the `light` tier takes about 30-40 minutes per the README.
+- Use: one deduplicated search across papers, books and trials (`hpr scholar search`), storing pages and PDFs as searchable notes, or reuse of a vault built by earlier runs. These CLI steps need no model.
+- Do not use: a quick answer or a moderate report with a chosen hosted model; prefer `open-deep-research`. Even the `light` tier takes about 30-40 minutes (`hyperresearch profile list`).
 - Do not use: a single metadata lookup (prefer `openalex-scholar`), question answering over a set of papers (prefer `paperqa-specialist`), or a raw page fetch (prefer `oxylabs-web-data`).
-- Do not use: local models only; prefer `local-deep-researcher`. On Claude Code the pipeline runs on Anthropic models.
+- Do not use: local models only; prefer `local-deep-researcher`. On Claude Code the pipeline's agents are pinned to Anthropic Opus and Sonnet.
 
 ## Prerequisites
-- Python 3.11-3.14, and Claude Code (or the OpenAI Codex CLI). Required.
-- Model usage: the subagent roster defaults to Sonnet and Opus and scales with tier, gear and corpus size. Required.
-- Web provider, set under `[web] provider` in `.hyperresearch/config.toml`: `builtin` (default; plain HTTP fetch, no search, no key). Optional: `crawl4ai` (headless browser, the one the pipeline is tuned for), `exa`, `tavily`, `serply` (each needs an API key; variable names not documented in README; check the repo), `parallel` (no key), `keenable` (optional `KEENABLE_API_KEY`).
-- Optional env: `CORE_API_KEY`, `FRED_API_KEY`, `HYPERRESEARCH_CONTACT_EMAIL` (SEC EDGAR search requires it; it also joins the OpenAlex and Crossref polite pools). Use a contact email only if the user has already set it; never supply one yourself.
+- Python 3.11-3.14 (`Requires-Python: <3.15,>=3.11`). Required. About 900 MB of disk: the base package already pulls crawl4ai, playwright, patchright and playwright-stealth (110 packages).
+- Full pipeline only: Claude Code authenticated against Anthropic (`ANTHROPIC_API_KEY` or a subscription login) plus the user's consent to spend it. The installed agents are pinned to `model: opus` (9) and `model: sonnet` (7). The Codex route (`install --target codex`, then `codex exec`) needs an authenticated OpenAI Codex CLI and was not verified. The CLI steps need neither.
+- Web provider, `[web] provider` in `.hyperresearch/config.toml` (source: `hyperresearch/web/*_provider.py`):
+  - `builtin`: plain HTTP fetch of HTML and PDF, no key, no web search.
+  - `tavily`: `TAVILY_API_KEY` and the `[tavily]` extra. Verified.
+  - `exa` (`EXA_API_KEY`, `[exa]` extra), `serply` (`SERPLY_API_KEY`), `keenable` (optional `KEENABLE_API_KEY`), `parallel` (no key, `[parallel]` extra). Not verified.
+  - `crawl4ai`: a headless patchright browser "with stealth". Do not use it unless the user explicitly asks.
+- Scholar sources (`hpr scholar sources -j`): OpenAlex, Crossref, DOAB and ClinicalTrials.gov need no key; CORE needs `CORE_API_KEY`; FRED needs `FRED_API_KEY`; SEC EDGAR needs `HYPERRESEARCH_CONTACT_EMAIL`; RePEc has no search API. Use a contact email only if the user has already set it; never supply one yourself.
+- Optional semantic search: `[embeddings] provider = "openai"` (`OPENAI_API_KEY`) or `"voyage"` (`VOYAGE_API_KEY`), plus `model` (source: `hyperresearch/core/embed.py`).
 
 ## Setup
-The README's install is `cd your-project`, `pip install hyperresearch`, `hyperresearch install`, which writes skills and subagents into the current directory. Use a dedicated workspace as that directory, not the project repo:
+Verified with hyperresearch 0.13.3 from PyPI on 2026-11-16. `hyperresearch install <path>` writes into `<path>` only, and nothing under `~/.claude` unless `--global`:
+- `CLAUDE.md`
+- `.claude/settings.json`, with a PreToolUse hook on `WebSearch|WebFetch` that runs `node <path>/.hyperresearch/hook.js`
+- `.claude/skills/hyperresearch/SKILL.md` plus 18 step skills
+- 16 `.claude/agents/hyperresearch-*.md`
+- `.hyperresearch/config.toml`, `hook.js`, `templates/note.md` and the SQLite DB
+
+So point it only at a dedicated workspace, never at the project repo. Never use `--global` unless the user asks.
+It also switches `[web] provider` from builtin to crawl4ai and test-launches patchright's stealth Chromium. If that launch fails, it runs `python -m patchright install chromium` (about 680 MB) (source: `hyperresearch/cli/install.py`, `_setup_crawl4ai`). `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` does not stop that explicit install. A browser path that cannot exist blocks both the download and the launch:
 ```bash
 TOOL_DIR="${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/hyperresearch"
 mkdir -p "$TOOL_DIR/workspace" && cd "$TOOL_DIR"
-python3 -m venv .venv && source .venv/bin/activate
-pip install hyperresearch
+[ -x .venv/bin/python ] || uv venv --python 3.12 .venv          # or: python3 -m venv .venv
+uv pip install --python .venv/bin/python "hyperresearch[tavily]==0.13.3"  # or: .venv/bin/pip install ...
 cd "$TOOL_DIR/workspace"
-hyperresearch install                    # Claude Code, then: /hyperresearch <anything>
+PLAYWRIGHT_BROWSERS_PATH=/dev/null/no-browsers "$TOOL_DIR/.venv/bin/hyperresearch" install . --json
+"$TOOL_DIR/.venv/bin/hyperresearch" config set web.provider builtin   # undo the crawl4ai switch
 ```
-The venv line is added to keep the package out of the system Python. Do not run `hyperresearch install --global` or install into the project repo unless the user asks. Optional fetch upgrade: `pip install "hyperresearch[crawl4ai]"`, then `provider = "crawl4ai"`.
+Re-running is idempotent (`"vault": "existing"`); repeat the provider reset after every `install`. `config set` accepts only `vault.name`, `vault.research_dir`, `web.provider`, `web.profile`, `web.magic`, `search.boost_evergreen`, `search.penalize_deprecated`, `sync.auto_sync` and `index.auto_build`. Edit `.hyperresearch/config.toml` for anything else, such as `[embeddings]`.
 
 ## How to run
-Full pipeline: in a Claude Code session started in the workspace, run `/hyperresearch <question>`. The entry skill classifies the query as `light` or `full` and invokes one step skill per phase; `dissertation` is opt-in and experimental. Starting it from inside a dispatched subagent is not documented in README; if the `/hyperresearch` skill is not available to you, use the CLI below and return `partial`, telling the orchestrator the pipeline must be launched from a top-level session in the workspace.
-CLI calls documented in the README (the README writes the command both as `hyperresearch` and `hpr`):
+Run every command from the workspace with `$TOOL_DIR/.venv/bin` on PATH; `hpr` and `hyperresearch` are the same CLI.
+Full pipeline: `/hyperresearch <question>` in Claude Code started in the workspace. Headless: `cd workspace && claude -p "/hyperresearch <question>"`; the entry skill has rules for `-p` mode. Tiers are routed per query: `light` (15-25 sources, about 30-40 min) and `dissertation` (opt-in). `hyperresearch profile use <full|premier>` sets only the gear.
+A full run uses Opus and Sonnet agents for 30 min to 5 h. Do not start one yourself. Run the CLI steps, return `partial` with their result, and tell the orchestrator that a full run needs the user's go-ahead and Anthropic credentials. Never reuse the caller's interactive Claude login for it without that consent.
+Standalone CLI, verified on 0.13.3 without any model:
 ```bash
-hpr scholar search "GLP-1 cardiovascular outcomes" --scope papers -j   # merged, deduplicated scholarly search
-hpr scholar sources                              # what is wired, what each covers
-hyperresearch search "ion-trap gate fidelity" -j # search the vault before fetching anything
-hyperresearch note show <id1> <id2> <id3> -j     # batch-read stored sources
-hyperresearch profile use full                   # 55-80 source baseline; premier = 100-130 sources (~3-5 h)
-hyperresearch run status -j                      # step-by-step status, spend, escalation queue depth
-hyperresearch run resume -j                      # exact next step after a crash
-hyperresearch run verify <tag> -j                # ship gate: headings, length, citation density, cite-check
+hpr scholar sources -j                                    # available scholar sources, and why others are not
+hpr scholar search "<query>" --scope papers --limit 8 -j   # merged OpenAlex+Crossref+DOAB; --fresh skips cache
+hyperresearch research "<query>" --provider tavily --max 3 --max-pages 3 -j  # web search, fetch, hub note
+hyperresearch fetch <url> --provider builtin --tag <t> -j  # one URL or PDF to a note (+ research/raw/<id>.pdf)
+hyperresearch search "<query>" -j                          # vault full text; add --semantic after `embed sync`
+hyperresearch note list -j; hyperresearch note show <id> -j
+hyperresearch embed sync -j; hyperresearch status -j; hyperresearch dedup -j; hyperresearch lint -j
 ```
-`run init --budget 50` caps estimated spend and blocks the run when crossed. `hyperresearch fetch` stores a URL or PDF as a note; its arguments are not documented in README; check the repo.
+`fetch` options (`fetch --help`): `--provider`, `--tag` (repeatable), `--title`, `--parent`, `--save-assets`, `--suggested-by`, `--utility-score` and `-j`. `fetch-batch` takes several URLs. Never pass `--visible`: it opens a visible browser.
+Pipeline bookkeeping, listed in `run --help` but not verified: `run init --budget 50` blocks a run whose estimated spend crosses the cap, plus `run status -j`, `run resume -j` and `run verify <tag> -j`.
 
 ## Output
-Source notes as markdown with YAML frontmatter in `research/notes/`, raw PDFs in `research/raw/<note-id>.pdf`, and a per-run workspace `research/runs/<vault_tag>/` holding `query.md` and the run manifest. Step 11 produces `final_report.md`; its exact path is not documented in README; check `run status`. Leave the vault in the workspace and copy the report and the notes it cites to `docs/research/<run-id>/hyperresearch-agent/`, never to the repo root.
+Source notes as markdown with YAML frontmatter (`source`, `fetch_provider`, `content_type`, `doi`, `raw_file`) in `research/notes/`; raw PDFs in `research/raw/<note-id>.pdf`; one hub note (type `moc`) per `research` call; and a per-run workspace `research/runs/<vault_tag>/` holding `query.md` and the run manifest. The pipeline's report is `research/notes/final_report_<vault_tag>.md` (source: `hyperresearch/core/agent_docs.py`). Leave the vault in the workspace and copy the report and the notes it cites to `docs/research/<run-id>/hyperresearch-agent/`, never to the repo root.
 
 ## Failure modes
-- Unvetted: this is a small project that was not run or audited when this agent was written. Review its dependencies, and the skills, subagents and hooks that `hyperresearch install` writes, before installing.
+- Unvetted: run once on 2026-11-16 at 0.13.3 (CLI and vault steps only; the full pipeline was not run) and still not audited. Review the skills, agents and hook that `install` writes before using them.
+- Installer starts the stealth browser: an empty `PLAYWRIGHT_BROWSERS_PATH` directory plus `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` still let it download patchright Chromium, and the next `install` launched it. Use `PLAYWRIGHT_BROWSERS_PATH=/dev/null/no-browsers`, delete any browser directory an earlier install created, and reset the provider to builtin.
+- `research` fails with "Builtin provider does not support web search": pass `--provider tavily` (or exa or serply), or find URLs elsewhere and use `fetch`.
+- `embed sync` returns `EMBEDDINGS_DISABLED`, and `config set embeddings.provider` answers "Unknown config key": edit `[embeddings]` in `.hyperresearch/config.toml`.
+- Duplicate notes: an arXiv `/abs/` URL resolves to the PDF, so fetching both `/abs/` and `/pdf/` stores the paper twice; `dedup` flags it.
+- Cached scholar results: `scholar search` can answer from its API cache (`"cached": true`); add `--fresh` for a live query.
 - Time and cost: `light` about 30-40 min, `full` about 1.5-2.5 h, `premier` gear about 3-5 h, `dissertation` about 4-8 h with targets the README says are not yet wired in. Set a budget before a long run.
 - Third-party sites: the `crawl4ai` provider is a headless browser "with stealth", and `hyperresearch setup` plus the browser lane fetch from sites you log into (LinkedIn, Twitter, Facebook, Instagram, TikTok are named). That is scraping; site terms of service and robots rules apply. Do not run `hyperresearch setup`, the browser lane or the TLS opt-outs unless the user explicitly asks. CAPTCHAs, 2FA and logins are never solved automatically.
-- Thin or substituted text: the default `builtin` provider has no web search, and a paywalled paper may enter the vault as an abstract. A note with `oa_recovery_kind: rescued` holds text that did not come from its `source:` URL; check quotes from `acceptedVersion` or `submittedVersion` copies against the published paper.
+- Thin or substituted text: a paywalled paper may enter the vault as an abstract. Open-access recovery queries Europe PMC with no key; Unpaywall is queried only if `[scholar] contact_email` is set. A note with `oa_recovery_kind: rescued` holds text that did not come from its `source:` URL; check quotes from `acceptedVersion` or `submittedVersion` copies against the published paper.
 - Claims: the DRACO score (77.7, 10 tasks) in the README is for the hosted "Hyperresearch Deep", and the README states the lint gate catches structural failures and cannot guarantee factual accuracy.
 
 ## Rules
