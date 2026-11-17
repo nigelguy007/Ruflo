@@ -24,9 +24,9 @@ One default per lane. Alternatives are used only under the rules in "Routing".
 
 | Lane | Default | Alternatives |
 |---|---|---|
-| Open-web research report | `open-deep-research` | `storm-researcher` (Wikipedia-style article, draft quality), `open-research-agent` (CLI; Firecrawl plus DeepSeek or OpenRouter keys), `multi-agent-research-tool` (short report; Groq and Tavily keys), `hyperresearch-agent` (long adversarially reviewed report) |
+| Open-web research report | `open-deep-research` | `storm-researcher` (Wikipedia-style article, draft quality), `open-research-agent` (CLI; Firecrawl plus any OpenAI-compatible model), `hyperresearch-agent` (long adversarially reviewed report; needs the user's go-ahead), `multi-agent-research-tool` (short, single source read in depth) |
 | Hard multi-step task, short exact answer | `miroflow-researcher` | none |
-| Inference on local models | `local-deep-researcher` (Ollama or LMStudio) | `local-research-agent` (Apple Silicon only), `crewai-research-agent` (Streamlit UI, human approves each step) |
+| Inference on local models | `local-deep-researcher` (Ollama or LMStudio) | `local-research-agent` (Apple Silicon only) |
 | Structured JSON per entity | `ferret-researcher` | none |
 | Business listings | `business-research-agent` | none |
 | Research method over evidence already held | `de-research-engine` | none |
@@ -37,10 +37,18 @@ One default per lane. Alternatives are used only under the rules in "Routing".
 | One long document, reasoning retrieval | `pageindex-specialist` | none |
 | Team documents and tools assistant | `onyx-specialist` | none |
 | Vector storage | `chroma-operator` (prototype) | `qdrant-operator` (dedicated service, filtering), `weaviate-operator` (hybrid keyword plus vector) |
-| Live web search and page fetch | `oxylabs-web-data` (paid key) | `rivalsearch-mcp` (keyless), `web-search-mcp` (other provider keys), `mcp-webresearch` (unmaintained) |
+| Live web search | `oxylabs-web-data` (paid key) | `rivalsearch-mcp` (keyless, self-hosted), `web-search-mcp` (other provider keys) |
+| Read a known URL | `oxylabs-web-data` (paid key) | `rivalsearch-mcp`, `mcp-webresearch` (page reading only; its search is broken) |
 
-`openai-research-agent` is in the roster but in no lane: its upstream marks every
-capability "Coming Soon". Dispatch it only when the user names it, and expect `blocked`.
+Two agents are in the roster but in no lane. Dispatch them only when the user names them:
+- `openai-research-agent`: needs a MuAPI key, and two of its three capabilities are absent
+  from MuAPI's public API. Expect `blocked`.
+- `crewai-research-agent`: in testing it produced invented citations and a wrong formula.
+  Its output is not usable as research without checking every claim.
+
+All 27 specialists were installed and run on 2026-11-16/17. Each file states the pinned
+version, the commands that worked, and the failures seen. Re-check a file's pin before
+trusting it months later.
 
 Each specialist's own file states its prerequisites, maturity and limits. Agents marked
 `maturity: unvetted` or `stale` in their frontmatter wrap small or unmaintained projects:
@@ -49,30 +57,31 @@ user when you use one.
 
 ### Constraints that decide routing
 
-Check these in preflight. They come from each tool's own README.
+Check these in preflight. Each was confirmed by running the tool.
 
-- `ferret-researcher` calls a Cloudflare Worker the user has already deployed. With no
-  endpoint it is blocked; it does not deploy one.
+- `ferret-researcher`: as shipped it hardcodes the DeepSeek and RapidAPI search endpoints,
+  so it needs those two keys, or a wrapper. It runs locally with `wrangler dev`.
 - `local-deep-researcher` keeps inference local but still sends search queries to the web.
   No agent in this roster researches the open web without network egress.
-- `local-research-agent` needs Apple Silicon with MLX. On Linux or Intel it is blocked.
-- `crewai-research-agent` has no CLI or API, only a browser UI with approval steps.
-- `hyperresearch-agent` and `de-research-engine` are Claude Code skill packs, not services.
-  Their installers write into the current project, so they run in a separate workspace, and
-  a dispatched subagent may only be able to return `partial`.
-- `business-research-agent` and `rivalsearch-mcp` scrape third-party sites directly, and
-  `rivalsearch-mcp` by default sends queries to a server hosted by its author. Get the
-  user's agreement before the first use in a run.
-- `web-search-mcp` installs a package published under a different account than its repo.
-  Do not have it installed without the user confirming the source.
-- `graphrag-specialist`: upstream describes itself as a research project and indexing
-  spends heavily on model calls. `onyx-specialist`: a multi-container service; use an
-  existing deployment or stand one up only on explicit request.
-- `openalex-scholar` works without a key for a first page; paging further needs the free
-  `OPENALEX_API_KEY`.
-- STORM, Open Deep Research, MiroFlow and LightRAG expect keys in a file upstream. The
-  specialists read keys from the environment only and return `blocked` if the tool will not
-  accept that, so the user may need to place that file once by hand.
+- `local-research-agent` needs Apple Silicon with MLX; it is hard-wired to both.
+- `hyperresearch-agent`: its full pipeline runs Opus and Sonnet agents in an
+  Anthropic-authenticated Claude Code for 30 min to 5 h. Ask the user before a full run.
+  It and `de-research-engine` are skill packs whose installers write into the target
+  folder, so they run only in a dedicated workspace.
+- `business-research-agent` scrapes third-party sites and its "robots.txt compliant" claim
+  is false. `rivalsearch-mcp` scrapes search engines directly. Get the user's agreement
+  before the first use in a run.
+- `web-search-mcp` is a stale fork of `robbyczgw-cla/web-search-plus-mcp` that needs a
+  patch to search at all. Recommend the maintained upstream when the user agrees.
+- `graphrag-specialist`: indexing spends heavily on model calls; get approval first.
+  `onyx-specialist`: a multi-container service; use an existing deployment or stand one
+  up only on explicit request.
+- `openalex-scholar`: without a key only single-record lookups are reliable, because the
+  keyless budget is shared per IP. Search and paging need the free `OPENALEX_API_KEY`.
+- `storm-researcher`: the upstream examples write the API key in plain text to
+  `run_config.json`. The specialist avoids that; check the file before sharing output.
+- `oxylabs-web-data`: the README's double-quoted remote registration stores the real key
+  in plain text in `~/.claude.json`. Give users the single-quoted form only.
 
 ## Workflow
 
@@ -159,8 +168,15 @@ For each specialist report:
 - `status: blocked`: record what was missing. Try the lane's next alternative once. If
   that is also blocked, carry the lane into the final report as unanswered.
 - Drop any finding without a source entry. Do not repair it from your own knowledge.
+- Trace every cited URL to the tool's own record of what it retrieved (search results,
+  source table, `sources` list, raw notes), not to the URLs written in its report. In
+  testing, seven tools cited pages they never retrieved or corrupted a URL while copying
+  it: Open Deep Research, GraphRAG, Ferret, Open Research Agent, CrewAI, the multi-agent
+  tool and STORM. A citation that cannot be traced is dropped, and the drop is reported.
 - Open at least the two sources carrying the most weight in the conclusion and confirm
   they say what the finding claims. If you cannot open them, say so in the report.
+- A self-assigned quality score from a tool (a critic's "6/10") is the model grading its
+  own draft. Report it as that, never as verification.
 - When two specialists disagree, report both positions with their sources. Do not pick
   one silently.
 - Count independent sources, not agents. Two agents citing the same page is one source.
