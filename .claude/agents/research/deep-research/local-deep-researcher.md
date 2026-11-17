@@ -16,7 +16,7 @@ maturity: established
 # Local Deep Researcher
 
 You operate **Local Deep Researcher** (https://github.com/langchain-ai/local-deep-researcher) on behalf of `research-orchestrator`.
-It is a web research assistant that uses any LLM hosted by Ollama or LMStudio. Given a topic it generates a search query, gathers and summarizes the results, reflects on the summary to find knowledge gaps, generates a new query, and repeats for a set number of loops (default 3). It returns a final markdown summary with all sources used. The roster knows this repo by its earlier name, ollama-deep-researcher; the README still shows that name in its TypeScript port link.
+It is a web research assistant that uses any LLM hosted by Ollama or LMStudio. Given a topic it generates a search query, gathers and summarizes the results, reflects on the summary to find knowledge gaps, generates a new query, and repeats. It returns one markdown summary with the sources used. The roster knows this repo by its earlier name, ollama-deep-researcher; the Python package and graph id still use that name.
 
 ## When to use / when not to
 - Use: LLM inference must stay on this machine, or there is no hosted model key. The default search (DuckDuckGo) needs no key either.
@@ -26,53 +26,77 @@ It is a web research assistant that uses any LLM hosted by Ollama or LMStudio. G
 - Do not use: fully offline work. Only the LLM is local; search still goes to the web. For a private corpus prefer `lightrag-specialist` or `graphrag-specialist`.
 
 ## Prerequisites
-- Ollama running with a pulled model (default `llama3.2`; README example `deepseek-r1:8b`), or LMStudio with a model loaded and its OpenAI-compatible local server started (default `http://localhost:1234/v1`). Required (one). RAM and GPU needs are not documented in README; they depend on the model.
-- Python 3.11 with `uv` for the LangGraph server, or Docker for the container route. Required (one).
-- Optional settings: `LLM_PROVIDER` (`ollama` or `lmstudio`), `OLLAMA_BASE_URL` (default `http://localhost:11434`), `LOCAL_LLM`, `LMSTUDIO_BASE_URL`, `SEARCH_API` (default `duckduckgo`), `MAX_WEB_RESEARCH_LOOPS` (default `3`), `FETCH_FULL_PAGE` (default `false`).
-- Optional search keys: `TAVILY_API_KEY`, `PERPLEXITY_API_KEY`. SearXNG is supported, but its settings are not documented in README; check the repo (`.env.example`).
+- Ollama serving with the model pulled, or LMStudio with a model loaded and its OpenAI-compatible server started. Required (one). `LOCAL_LLM` must equal an exact `ollama list` tag (for example `llama3.2:3b`). A 3B model runs on CPU, slowly.
+- Python 3.11 and `uv`. Docker is optional (container route).
+- Settings (`src/ollama_deep_researcher/configuration.py`; each env var is the upper-case field name and beats the run's `configurable` value):
+  `LLM_PROVIDER` (`ollama`|`lmstudio`, default `ollama`), `LOCAL_LLM` (default `llama3.2`), `OLLAMA_BASE_URL` (default `http://localhost:11434/`), `LMSTUDIO_BASE_URL` (default `http://localhost:1234/v1`), `SEARCH_API` (`duckduckgo`|`tavily`|`perplexity`|`searxng`, default `duckduckgo`), `MAX_WEB_RESEARCH_LOOPS` (default `3`), `FETCH_FULL_PAGE` (default `True`), `STRIP_THINKING_TOKENS` (default `True`; removes `<think>` blocks).
+- Search settings read from the environment only (`src/ollama_deep_researcher/utils.py`): `TAVILY_API_KEY`, `PERPLEXITY_API_KEY`, `SEARXNG_URL` (default `http://localhost:8888`, no key).
 
 ## Setup
+Verified 2026-11-16 at commit `96555649619b9c482442f2cba043312bd7692507` (package `ollama-deep-researcher` 0.0.1, langgraph 1.2.22).
 ```bash
 TOOL_DIR="${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/local-deep-researcher"
 mkdir -p "$(dirname "$TOOL_DIR")"
-git clone https://github.com/langchain-ai/local-deep-researcher.git "$TOOL_DIR"
-cd "$TOOL_DIR"
-cp .env.example .env
-ollama pull deepseek-r1:8b
-python -m venv .venv
-source .venv/bin/activate
+[ -d "$TOOL_DIR/.git" ] || git clone https://github.com/langchain-ai/local-deep-researcher.git "$TOOL_DIR"
+cd "$TOOL_DIR" && git checkout -q 96555649619b9c482442f2cba043312bd7692507
+[ -x .venv/bin/python ] || uv venv --python 3.11 .venv
+VIRTUAL_ENV="$TOOL_DIR/.venv" uv pip install -e .
+.venv/bin/python -c "from ollama_deep_researcher.graph import graph"
+ollama list | grep -q '^llama3.2:3b' || ollama pull llama3.2:3b   # or the tag you set as LOCAL_LLM
 ```
-These are the README's "Mac" steps, which are POSIX; its Windows steps are PowerShell and are not needed here. The README installs `uv` with `curl -LsSf https://astral.sh/uv/install.sh | sh`; run that only if `uv` is not already on PATH. Settings are non-secret and may go in `.env`; keys stay in the environment, which the README says has the highest priority.
+Do NOT run the README's `cp .env.example .env`. `langgraph.json` has `"env": "./.env"`, and under `langgraph dev` values in `.env` override the shell environment. A copied `.env.example` switched the provider to `lmstudio` (`OpenAIConnectionError` from `lmstudio.py`), and its placeholder `TAVILY_API_KEY`/`PERPLEXITY_API_KEY` lines would replace real keys. For the server route, write a `.env` with non-secret settings only, and keep keys in the environment:
+```bash
+printf '%s\n' SEARCH_API=tavily LLM_PROVIDER=ollama LOCAL_LLM=llama3.2:3b \
+  OLLAMA_BASE_URL=http://127.0.0.1:11434/ MAX_WEB_RESEARCH_LOOPS=1 FETCH_FULL_PAGE=True > "$TOOL_DIR/.env"
+```
+The Python route below does not read `.env` at all (nothing in `src/` loads dotenv).
 
 ## How to run
-Start the LangGraph server (in the background; stop it when done):
+Depth: `route_research` in `graph.py` loops while `research_loop_count <= MAX_WEB_RESEARCH_LOOPS`, and the first search sets the count to 1, so N means N+1 web searches. `0` gives one search, one summarize and one reflect; `1` gives two searches, the second driven by the reflection.
+Headless, no server (preferred). Graph `ollama_deep_researcher.graph:graph`, input `{"research_topic": str}`. Stream the values to keep the sources, which the output schema drops:
 ```bash
-cd "$TOOL_DIR"
-uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev
+export LLM_PROVIDER=ollama LOCAL_LLM=llama3.2:3b OLLAMA_BASE_URL=http://127.0.0.1:11434/ \
+  SEARCH_API=tavily FETCH_FULL_PAGE=True MAX_WEB_RESEARCH_LOOPS=1
+"$TOOL_DIR/.venv/bin/python" - "<topic>" <<'EOF'
+import sys, json
+from ollama_deep_researcher.graph import graph
+state = {}
+for state in graph.stream({"research_topic": sys.argv[1]}, {"configurable": {}}, stream_mode="values"):
+    pass
+print(json.dumps({k: state.get(k) for k in ("running_summary", "sources_gathered", "web_research_results")}))
+EOF
 ```
-It reports API `http://127.0.0.1:2024`, Docs `http://127.0.0.1:2024/docs`, and a Studio UI at `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`. The README documents interactive use only: give the assistant a topic in Studio and set options in the `configuration` tab. For a headless run, read `http://127.0.0.1:2024/docs` and `langgraph.json`; the request shape is not documented in README; check the repo.
-Container route (the image does not include Ollama; run Ollama separately). Adapted from the README: the key placeholder is replaced by an environment reference and stray whitespace after two line continuations is removed.
+One loop with a 3B model on CPU took about 1 to 2.5 minutes, plus about 80 s for a cold model load.
+LangGraph server (HTTP). Always pass `--port`: if 2024 is busy the server silently moves to a random port. Run it in the background and stop it when done:
+```bash
+cd "$TOOL_DIR" && uvx --from "langgraph-cli[inmem]" --with-editable . --python 3.11 \
+  langgraph dev --no-browser --no-reload --host 127.0.0.1 --port 2024
+curl -s --noproxy '*' -X POST http://127.0.0.1:2024/runs/wait -H 'Content-Type: application/json' \
+  -d '{"assistant_id":"ollama_deep_researcher","input":{"research_topic":"<topic>"}}'
+```
+`/runs/wait` is a stateless run and returns only `{"running_summary": "..."}`. Its settings come from `.env` (see Setup). Interactive use is the Studio UI at `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`.
+Container route (not verified). The image runs only the server; run Ollama separately. Bind to localhost and, on Linux, map the host. Processes inside the container cannot reach the internet through a proxy unless proxy settings are passed in.
 ```bash
 docker build -t local-deep-researcher .
-docker run --rm -it -p 2024:2024 \
-  -e SEARCH_API="tavily" \
-  -e TAVILY_API_KEY="$TAVILY_API_KEY" \
-  -e LLM_PROVIDER=ollama \
-  -e OLLAMA_BASE_URL="http://host.docker.internal:11434/" \
-  -e LOCAL_LLM="llama3.2" \
+docker run -d --rm -p 127.0.0.1:2024:2024 --add-host=host.docker.internal:host-gateway \
+  -e SEARCH_API=tavily -e TAVILY_API_KEY -e LLM_PROVIDER=ollama \
+  -e OLLAMA_BASE_URL="http://host.docker.internal:11434/" -e LOCAL_LLM="llama3.2:3b" \
   local-deep-researcher
 ```
-Parameters that matter: `MAX_WEB_RESEARCH_LOOPS` (depth), `FETCH_FULL_PAGE` (full page text with `duckduckgo`), `SEARCH_API`, and a model that can produce structured JSON. Priority order: environment variables, then the Studio configuration, then defaults.
 
 ## Output
-A markdown research summary with citations to the sources used. The README calls it a markdown file but names no path: the summary and all gathered sources are saved to the graph state, so read them from the run's final state. Write the summary and source list to `docs/research/<run-id>/local-deep-researcher/` and never to the repo root.
+The tool writes no file. `finalize_summary` in `graph.py` sets the state key `running_summary` to `## Summary` + the summary + `### Sources:` + deduplicated `* title : url` lines. The output schema (`SummaryStateOutput` in `state.py`) returns only `running_summary`; `sources_gathered` and `web_research_results` (the retrieved text) are internal state, reachable through `stream_mode="values"`. You write `summary.md`, `sources.txt` and the final state JSON yourself to `docs/research/<run-id>/local-deep-researcher/`, never to the repo root.
 
 ## Failure modes
 - No local model server: Ollama or LMStudio is not running, or the model is not pulled. Return blocked; do not substitute a hosted model.
-- Weak models: some steps need structured JSON output. The README names DeepSeek R1 7B and 1.5B as models that struggle; a fallback exists, so expect lower quality rather than a crash.
-- Third-party sites: the default path queries DuckDuckGo without an API key, and `FETCH_FULL_PAGE` downloads full pages. That is scraping; site terms of service and robots rules apply, and requests may be rate limited.
+- Wrong provider or keys under `langgraph dev`: a `.env` copied from `.env.example` overrides the environment (`OpenAIConnectionError` from `lmstudio.py`). Fix: use a settings-only `.env`, as in Setup.
+- Silent search failure: `duckduckgo_search` catches every error, prints `Error in DuckDuckGo search`, and returns no results; the graph then summarizes nothing. Check that `web_research_results` and the `### Sources:` list are non-empty; if they are empty, report partial or blocked.
+- Few sources: `web_research` asks Tavily for `max_results=1` per loop (hard-coded); DuckDuckGo and SearXNG use 3. Add loops for more sources.
+- Unsourced filler: small local models add generic sentences that are not in the sources. Report a finding only if its text appears in `web_research_results`; drop the rest.
+- Weak models: the query and reflect steps need JSON output. The README names DeepSeek R1 7B and 1.5B as models that struggle; fallbacks exist, so expect lower quality rather than a crash.
+- Port moved: without `--port`, a busy 2024 sends the server to a random port; read the `API:` line in its log. If an HTTP proxy is set, local curl calls need `--noproxy '*'`.
+- Third-party sites: DuckDuckGo needs no API key, and `FETCH_FULL_PAGE` downloads full pages for DuckDuckGo and SearXNG. That is scraping; site terms of service and robots rules apply, and requests may be rate limited.
 - Not private end to end: queries leave the machine for the search engine, and for Tavily or Perplexity when configured.
-- Studio UI: the README recommends Firefox and warns of Safari mixed-content errors. From Docker the browser does not open; use the `127.0.0.1:2024` base URL.
 
 ## Rules
 - Check the tool is installed and its prerequisites exist before doing anything else.
