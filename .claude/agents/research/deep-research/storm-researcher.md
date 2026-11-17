@@ -26,58 +26,83 @@ STORM is an LLM system that writes Wikipedia-like articles from scratch based on
 - Do not use: question answering over a private corpus; prefer `lightrag-specialist` or `graphrag-specialist`. STORM's `VectorRM` can ground on user documents, but the README defers its setup to `examples/storm_examples/README.md`.
 
 ## Prerequisites
-- Python 3.11 (the version the README's source install creates). Required.
-- A language model key. Any litellm-supported model works; the README examples use OpenAI and read `OPENAI_API_KEY`. Required.
-- One retriever. README examples: `YouRM` reads `YDC_API_KEY`, `BingSearch` reads `BING_SEARCH_API_KEY`. Also listed: `VectorRM`, `SerperRM`, `BraveRM`, `SearXNG`, `DuckDuckGoSearchRM`, `TavilySearchRM`, `GoogleSearch`, `AzureAISearch`; their arguments and env vars are not documented in README; check the repo (`knowledge_storm/rm.py`). Required (one).
+- Python 3.10 or later (`Requires-Python: >=3.10` in the 1.1.1 wheel). Run end to end on 3.11; install and import also verified on 3.12. Required.
+- `uv` for the install below. Required.
+- A language model key. Any litellm-supported model works; for OpenAI set `OPENAI_API_KEY` in the environment. Required.
+- One retriever. Verified: `TavilySearchRM`, which reads `TAVILY_API_KEY` and needs the `tavily-python` package (not a dependency of `knowledge-storm`). Others in `knowledge_storm/rm.py`, with the env var the upstream script `examples/storm_examples/run_storm_wiki_gpt.py` passes them (not run here): `YouRM` (`YDC_API_KEY`), `BraveRM` (`BRAVE_API_KEY`), `SerperRM` (`SERPER_API_KEY`), `SearXNG` (`SEARXNG_API_KEY`), `AzureAISearch` (`AZURE_AI_SEARCH_API_KEY`), `DuckDuckGoSearchRM` (no key). `BingSearch` no longer works (see Failure modes). Required (one).
+- Network access to huggingface.co: the article stage downloads the encoder `paraphrase-MiniLM-L6-v2` (about 90 MB) on first use (`knowledge_storm/storm_wiki/modules/storm_dataclass.py`). Required.
+- About 1.5 GB of disk for the venv with CPU torch. Required.
 - Example scripts only: `OPENAI_API_TYPE` (`openai` or `azure`), `AZURE_API_BASE`, `AZURE_API_VERSION`, and `ENCODER_API_TYPE` for Co-STORM. Optional.
 
 ## Setup
-The README installs with `pip install knowledge-storm` (its source route uses `conda create -n storm python=3.11`; the venv below is the equivalent, translated to keep the install out of the project repo).
+Verified 2026-11-16: `knowledge-storm` 1.1.1 from PyPI (with dspy-ai 2.4.9, litellm 1.80.0), upstream at commit fb951af (2025-09-30). The README's bare `pip install knowledge-storm` fails two ways, and the flags below fix both: it pulls the CUDA build of torch plus about 17 `nvidia-*` wheels (several GB, never used; STORM only runs a small sentence encoder), and it resolves `sentence-transformers` 2.2.2, which makes `from knowledge_storm import ...` raise ImportError.
 ```bash
 TOOL_DIR="${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/storm"
 mkdir -p "$TOOL_DIR" && cd "$TOOL_DIR"
-python3.11 -m venv .venv && source .venv/bin/activate
-pip install knowledge-storm
-# only if you need the example scripts:
-git clone https://github.com/stanford-oval/storm.git && cd storm && pip install -r requirements.txt
+[ -x .venv/bin/python ] || uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python --torch-backend cpu \
+  "knowledge-storm==1.1.1" "sentence-transformers>=3" tavily-python
+.venv/bin/python -c "from knowledge_storm import STORMWikiRunner; from knowledge_storm.rm import TavilySearchRM; print('ok')"
+# only to read the example scripts and rm.py:
+[ -d storm-src/.git ] || git clone --depth 1 https://github.com/stanford-oval/storm.git storm-src
 ```
+With pip instead of uv (not run here): install CPU torch first with `pip install torch --index-url https://download.pytorch.org/whl/cpu`, then the same three packages.
 
 ## How to run
-Python API (keys come from the environment). Keep the driver script in `$TOOL_DIR`, not in the project repo.
+Save this driver as `$TOOL_DIR/run_storm.py`, not in the project repo, and run `"$TOOL_DIR/.venv/bin/python" "$TOOL_DIR/run_storm.py" "<topic>" "<output_dir>"`. Keys come from the environment only.
 ```python
-import os
+import sys
 from knowledge_storm import STORMWikiRunnerArguments, STORMWikiRunner, STORMWikiLMConfigs
 from knowledge_storm.lm import LitellmModel
-from knowledge_storm.rm import YouRM
+from knowledge_storm.rm import TavilySearchRM
 
+topic, out_dir = sys.argv[1], sys.argv[2]
+# Never pass api_key=: post_run() writes every LM kwarg to run_config.json, so a key passed
+# here lands in that file in plain text. litellm reads OPENAI_API_KEY from the environment.
+kw = {"temperature": 1.0, "top_p": 0.9, "cache": False}
+fast = LitellmModel(model="openai/gpt-5.4-nano", max_tokens=500, **kw)
+strong = LitellmModel(model="openai/gpt-5.4-nano", max_tokens=3000, **kw)
 lm_configs = STORMWikiLMConfigs()
-kw = {'api_key': os.getenv("OPENAI_API_KEY"), 'temperature': 1.0, 'top_p': 0.9}
-fast = LitellmModel(model='gpt-3.5-turbo', max_tokens=500, **kw)
-strong = LitellmModel(model='gpt-4o', max_tokens=3000, **kw)
 lm_configs.set_conv_simulator_lm(fast); lm_configs.set_question_asker_lm(fast)
 lm_configs.set_outline_gen_lm(strong); lm_configs.set_article_gen_lm(strong); lm_configs.set_article_polish_lm(strong)
-engine_args = STORMWikiRunnerArguments(...)  # arguments are elided in the README; read the class
-rm = YouRM(ydc_api_key=os.getenv('YDC_API_KEY'), k=engine_args.search_top_k)
-runner = STORMWikiRunner(engine_args, lm_configs, rm)
+args = STORMWikiRunnerArguments(output_dir=out_dir, max_conv_turn=3, max_perspective=3,
+    max_search_queries_per_turn=3, search_top_k=3, retrieve_top_k=3, max_thread_num=10)
+rm = TavilySearchRM(k=args.search_top_k, include_raw_content=True)  # reads TAVILY_API_KEY
+runner = STORMWikiRunner(args, lm_configs, rm)
 runner.run(topic=topic, do_research=True, do_generate_outline=True, do_generate_article=True, do_polish_article=True)
 runner.post_run(); runner.summary()
 ```
-Quality levers: a cheaper model for the conversation simulator and question asker, a stronger one for outline, article and polish (the README's advice). Setting a `do_*` flag to False loads earlier results instead of redoing that stage. Example script, from the clone:
-```bash
-python examples/storm_examples/run_storm_wiki_gpt.py --output-dir $OUTPUT_DIR --retriever bing \
-    --do-research --do-generate-outline --do-generate-article --do-polish-article
-```
-That command is the README's, but do not use `--retriever bing` or `BingSearch`: Microsoft retired the Bing Search APIs on 2025-08-11 (learn.microsoft.com/en-us/lifecycle/announcements/bing-search-api-retirement), so pass another retriever the script supports. The example scripts read keys from a `secrets.toml` in the clone root. Do not create that file; if the user has not placed one there, use the Python API. Co-STORM (`CoStormRunner`: `warm_start()`, `step()`, `knowledge_base.reorganize()`, `generate_report()`) is for interactive sessions; use it only when asked.
+- Models: give litellm the provider prefix (`openai/...`). `openai/gpt-5.4-nano` was verified. The README's `gpt-3.5-turbo` and `gpt-4o` are dated; use a current model, and a stronger one for outline, article and polish if quality matters (the README's advice).
+- `STORMWikiRunnerArguments` (`knowledge_storm/storm_wiki/engine.py`): `output_dir` is required; the other values above are the defaults. `disable_perspective` (default False) has no effect, because `run_knowledge_curation_module` passes `disable_perspective=False` itself. `max_perspective=N` gives N+1 personas: a fixed "Basic fact writer" persona is always added (`storm_wiki/modules/persona_generator.py`).
+- Smallest useful run: `max_conv_turn=1, max_perspective=1, max_search_queries_per_turn=2, search_top_k=2` and `do_polish_article=False`. Verified: about 1 minute, 4 Tavily searches, about 30k prompt and 9k completion tokens.
+- `TavilySearchRM` (`knowledge_storm/rm.py`): `tavily_search_api_key=None, k=3, is_valid_source=None, min_char_count=150, snippet_chunk_size=1000, webpage_helper_max_threads=10, include_raw_content=False`.
+- `cache=False` keeps runs live: with the default `cache=True`, completions are cached on disk in `~/.storm_local_cache` (`knowledge_storm/lm.py`), so a re-run can return stored answers.
+- A `do_*` flag set to False loads that stage's earlier files from the output directory instead of redoing it.
+
+Example script, from the clone: `python examples/storm_examples/run_storm_wiki_gpt.py --output-dir <output_dir> --retriever tavily --do-research --do-generate-outline --do-generate-article --do-polish-article`. Never use `--retriever bing`. The script loads keys from `secrets.toml` in the clone root (line 45, `load_api_key(toml_file_path="secrets.toml")`). Do not create that file; if the user has not placed one there, use the driver above. Co-STORM (`CoStormRunner`: `warm_start()`, `step()`, `knowledge_base.reorganize()`, `generate_report()`) is for interactive sessions; use it only when asked.
 
 ## Output
-The example script writes under `--output-dir`; the file names, and the output argument of `STORMWikiRunnerArguments`, are not documented in README; check the repo. Expect an outline, a cited article and the collected references. Point the output at, or copy it to, `docs/research/<run-id>/storm-researcher/` and never to the repo root.
+Results go to `<output_dir>/<topic with spaces and "/" replaced by "_", truncated>/` (`engine.py`, `run()`):
+- research: `conversation_log.json` (per-persona dialogue), `raw_search_results.json`
+- outline: `storm_gen_outline.txt` (the outline used), `direct_gen_outline.txt` (drafted from the model alone)
+- article: `storm_gen_article.txt`, `url_to_info.json`; `storm_gen_article_polished.txt` only with `do_polish_article=True`
+- `post_run()`: `run_config.json` (every LM kwarg), `llm_call_history.jsonl`
+
+Citation `[n]` in the article is the URL whose value is `n` in `url_to_info.json["url_to_unified_index"]`; the snippets STORM used for it are in `url_to_info.json["url_to_info"][url]["snippets"]`. Before sharing output, check `run_config.json` holds no key: every LM's `"api_key"` must be `null`. Set `output_dir` to, or copy the topic directory into, `docs/research/<run-id>/storm-researcher/`, and never the repo root.
 
 ## Failure modes
-- Missing model or retriever key: the run cannot search or generate. Only `OPENAI_API_KEY`, `YDC_API_KEY` and `BING_SEARCH_API_KEY` are named in the README. Of those, the Bing Search API was retired on 2025-08-11, so `BING_SEARCH_API_KEY` no longer works; confirm any other provider still offers API access.
-- Quality: the README says STORM cannot produce publication-ready articles and that they often need significant edits. Report the article as a draft.
-- Cost: every stage makes many LM and search calls per topic; the README gives no figure.
-- Staleness: the last upstream commit seen was 2025-09-30, and the README's example models (`gpt-3.5-turbo`, `gpt-4o`) may be retired; substitute current litellm model names.
-- The README describes no step that checks a citation against its source page; spot-check citations before you report a claim.
+- `ImportError: cannot import name 'cached_download' from 'huggingface_hub'` on import: sentence-transformers 2.x was resolved. Reinstall with `"sentence-transformers>=3"`.
+- The install downloads `nvidia-*` wheels and several GB: re-run with `--torch-backend cpu` (uv) or install CPU torch first (pip).
+- "Tavily requires `pip install tavily-python`": install `tavily-python`.
+- `litellm.BadRequestError: LLM Provider NOT provided ... You passed model=gpt-5.4-nano`: add the provider prefix, `openai/gpt-5.4-nano`.
+- A key in `run_config.json`: `api_key=` was passed to `LitellmModel` (the README's pattern). Remove the kwarg, delete or redact the file, and rotate the key if the file left the machine.
+- Missing retriever key: `RuntimeError: You must supply tavily_search_api_key or set environment variable TAVILY_API_KEY`. The Bing Search API was retired on 2025-08-11 (learn.microsoft.com/en-us/lifecycle/announcements/bing-search-api-retirement), so `BingSearch` and `BING_SEARCH_API_KEY` no longer work; confirm any other provider still offers API access.
+- The article stage fails without network: the encoder is downloaded from huggingface.co on first use.
+- A re-run returns the same text: cached completions; pass `cache=False`.
+- Citations do not always hold. In a verified run, a claim cited to two sources was supported by only one source's snippet, and a worked example cited to a source was not in its snippet. For every claim you report, look up `[n]` in `url_to_info.json` and confirm the claim is in that URL's snippets; otherwise drop it or name a source that does support it. The README also says articles are not publication-ready; report the article as a draft.
+- Cost: the default arguments make several times the calls of the smallest run above; the README gives no figure.
+- Noise: LiteLLM INFO lines and pydantic serializer warnings on every call are harmless; read the `summary()` block at the end.
+- Staleness: the last upstream commit is fb951af (2025-09-30); re-check the pins if a newer `knowledge-storm` is released.
 
 ## Rules
 - Check the tool is installed and its prerequisites exist before doing anything else.

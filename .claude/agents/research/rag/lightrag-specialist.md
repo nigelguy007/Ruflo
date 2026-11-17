@@ -19,7 +19,7 @@ maturity: established
 You operate **LightRAG** (https://github.com/HKUDS/LightRAG) on behalf of `research-orchestrator`.
 LightRAG uses an LLM to extract entities and relations from documents, keeps them as a knowledge
 graph next to vector embeddings of chunks, entities and relations, and retrieves from both at query
-time. Its server returns an LLM-written answer together with the retrieved contexts.
+time. Its server writes an answer (`POST /query`); `POST /query/data` returns the retrieved contexts.
 
 ## When to use / when not to
 - Use: questions over a supplied corpus that turn on cross-document entities, relationships or
@@ -30,56 +30,96 @@ time. Its server returns an LLM-written answer together with the retrieved conte
   (`graphrag-specialist`); open-web questions (`storm-researcher` or `open-deep-research`).
 
 ## Prerequisites
-- Required: Python 3.11+, plus an LLM and an embedding endpoint. With the default OpenAI models set
+- Required: Python 3.11+, plus an LLM and an embedding endpoint. With OpenAI set
   `LLM_BINDING_API_KEY` and `EMBEDDING_BINDING_API_KEY` (the same key is fine).
-- Other providers: also `LLM_BINDING_HOST`, `LLM_MODEL`, `EMBEDDING_BINDING_HOST`, `EMBEDDING_MODEL`
-  and `EMBEDDING_DIM` (keep `LLM_BINDING=openai` for any OpenAI-compatible API).
-- Optional: Docker, a reranker, MinerU or Docling parsers, an external store. Default stores are
-  in-memory with file persistence under `WORKING_DIR`: bounded by RAM and, per the README, not for
-  production. PostgreSQL is recommended; Milvus or Qdrant can hold the vectors (get a Qdrant
-  instance from `qdrant-operator`), Neo4j or Memgraph the graph.
+- Models: env.example uses `text-embedding-3-large` with `EMBEDDING_DIM=3072`; any other embedding model
+  needs `EMBEDDING_MODEL` and `EMBEDDING_DIM` set (`text-embedding-3-small` is 1536). For a reasoning chat
+  model set `OPENAI_LLM_REASONING_EFFORT` (env.example v1.5.7 suggests `minimal`; `low` also works).
+- Other providers: also `LLM_BINDING_HOST`, `LLM_MODEL`, `EMBEDDING_BINDING_HOST` (`LLM_BINDING=openai` fits any OpenAI-compatible API).
+- Optional: Docker, a reranker (`RERANK_BINDING` plus a rerank service or key), MinerU or Docling parsers,
+  an external store. Default stores are in-memory with file persistence under `WORKING_DIR`: bounded by
+  RAM and, per the README, not for production. PostgreSQL is recommended; Milvus or Qdrant can hold the
+  vectors (get a Qdrant instance from `qdrant-operator`), Neo4j or Memgraph the graph.
 
 ## Setup
-The README's first choice is `uv tool install`; its pip-in-a-venv alternative keeps the install here:
+Verified on 2026-11-16 with `lightrag-hku[api]==1.5.7` (repo tag `v1.5.7`) on Python 3.12. The README's
+first choice is `uv tool install`; a uv venv keeps the install here. The wheel does not ship
+`env.example`, so take it from the same tag (the `main` copy drifts from the release).
 
 ```bash
+VERSION=1.5.7
 TOOL_DIR="${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/lightrag"
 mkdir -p "$TOOL_DIR" && cd "$TOOL_DIR"
-python -m venv .venv && source .venv/bin/activate
-pip install "lightrag-hku[api]"
-curl -O https://raw.githubusercontent.com/HKUDS/LightRAG/main/env.example
-cp env.example .env
+[ -x .venv/bin/python ] || uv venv --python 3.12 .venv   # no uv: python3 -m venv .venv
+uv pip install --python .venv/bin/python "lightrag-hku[api]==$VERSION"   # or .venv/bin/pip install
+[ -f env.example ] || curl -fsSO "https://raw.githubusercontent.com/HKUDS/LightRAG/v$VERSION/env.example"
+[ -f .env ] || cp env.example .env
 ```
 
-Set `HOST=127.0.0.1` in `.env` before the first start: the README warns the server binds `0.0.0.0`
-with authentication off. Supply the API keys as environment variables of the server process, not as
-`.env` lines (precedence between the two is not documented in README; check the repo). Fix the
-embedding model before the first upload and set `OPENAI_LLM_REASONING_EFFORT=low` as recommended.
+Before the first start, in `.env`: set `HOST=127.0.0.1` (env.example ships `HOST=0.0.0.0` with
+authentication off, per the README install section); set `LLM_MODEL`, `EMBEDDING_MODEL` and
+`EMBEDDING_DIM`; comment out the two `*_BINDING_API_KEY=your_api_key` lines, or an unset key resolves
+to the literal string `your_api_key`.
+
+Precedence: OS environment variables override `.env`, and CLI flags (`--host`, `--port`) override both.
+Every module loads `.env` with `load_dotenv(dotenv_path=".env", override=False)` (e.g.
+`lightrag/api/config.py`); `docs/LightRAG-API-Server.md`: "LightRAG Server will prioritize the settings in
+the system environment variables to .env file". Pass keys in the server's environment; `.env` is read from the cwd only.
 
 ## How to run
 ```bash
-cd "${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/lightrag" && source .venv/bin/activate
-lightrag-server
+cd "${RESEARCH_TOOLS_DIR:-$HOME/.research-tools}/lightrag"
+LLM_BINDING_API_KEY="$OPENAI_API_KEY" EMBEDDING_BINDING_API_KEY="$OPENAI_API_KEY" \
+  setsid nohup .venv/bin/lightrag-server >> server.log 2>&1 < /dev/null &
+for i in $(seq 60); do curl -fsS -o /dev/null http://127.0.0.1:9621/health && break; sleep 1; done
 ```
 
-- Admin WebUI: `http://localhost:9621/webui`. REST API docs: `http://localhost:9621/docs`. The REST
-  paths for upload and query are not documented in README; check the repo or read `/docs` there.
+REST paths verified on 1.5.7 (routes in `lightrag/api/routers/document_routes.py` under `/documents`,
+`query_routes.py`, `graph_routes.py`; Swagger at `/docs`, WebUI at `/webui/`):
+| Purpose | Call |
+|---|---|
+| Upload a file | `POST /documents/upload`, multipart field `file`; returns at once with a `track_id` |
+| Progress | `GET /documents/status_counts`; `GET /documents/pipeline_status` (`busy`, `history_messages`) |
+| List documents | `POST /documents/paginated` `{"page":1,"page_size":50}` (gives `id`, `status`, `file_path`) |
+| Delete | `DELETE /documents/delete_document` `{"doc_ids":[...],"delete_file":true,"delete_llm_cache":false}` |
+| Answer | `POST /query` `{"query":"...","mode":"mix","include_references":true}` |
+| Contexts | `POST /query/data`, same body |
+| Graph, health | `GET /graphs?label=*&max_depth=3&max_nodes=5000`; `GET /health` |
+
+- Index: upload each file, then poll until `status_counts` shows `processed` equal to the file count,
+  `failed` 0 and `pipeline_status` `"busy": false`. Query only after that.
 - Query mode: `mix` (default and recommended: local + global + naive), `local` (specific entities
   and facts), `global` (themes, cross-document relationships), `hybrid`, `naive` (vector chunks only).
-- Quality: enable reranking (README: about 1-2 s extra per query); parse with
-  `LIGHTRAG_PARSER=*:native-iteP,*:mineru-iteP,*:legacy-R` and `VLM_PROCESS_ENABLE=true`.
+- Reranking (README: about 1-2 s extra per query) needs `RERANK_BINDING`; without one queries log
+  "Rerank is enabled but no rerank model is configured" and still work (`"enable_rerank": false` mutes it).
+- PDFs and Office files only: `LIGHTRAG_PARSER=*:native-iteP,*:mineru-iteP,*:legacy-R` (needs a MinerU
+  service) and `VLM_PROCESS_ENABLE=true` (needs a VLM role). Plain text needs the default.
 
 ## Output
-The server returns the answer plus the retrieved contexts (entities, relations, text chunks). Save
-each query, its mode, the answer and the contexts. Write artifacts to
-`docs/research/<run-id>/lightrag-specialist/` and never to the repo root.
+- `/query` returns `response`, `references` (file paths only; `"include_chunk_content": true` adds chunk
+  text), `response_time` and `llm_generated`. It returns no entities, relations or chunks.
+- `/query/data` writes no answer; it returns `data.entities`, `data.relationships`, `data.chunks`
+  (`content`, `file_path`, `chunk_id`), `data.references` and `metadata.keywords`. These are the contexts
+  to cite: give each claim the file path and `chunk_id` of the chunk that supports it.
+- Graph size: node and edge counts from `GET /graphs` (check `is_truncated: false`) match
+  `WORKING_DIR/graph_chunk_entity_relation.graphml`; per-document counts are in the server log
+  (`Completed merging: N entities, ..., M relations`). Counts vary between runs on the same corpus (one
+  gave 320/375, then 299/380 after fresh extraction) because extraction is LLM output; report per run.
+- Save each query, its mode, both responses and the graph counts to `docs/research/<run-id>/lightrag-specialist/`, never to the repo root.
 
 ## Failure modes
-- Indexing cost: extraction is one LLM call per text chunk. On timeouts raise `EXTRACT_LLM_TIMEOUT`
-  (effective limit is twice the value); set `CHUNK_P_DROP_REFERENCES=true` when reference lists flood it.
+- Indexing cost: one to two LLM calls per chunk (13 chunks made 26), plus merge summaries. On timeouts
+  raise `EXTRACT_LLM_TIMEOUT` (effective limit is twice the value); set `CHUNK_P_DROP_REFERENCES=true`
+  when reference lists flood it.
+- Re-uploading an indexed file returns HTTP 409 "Document storage already contains ...": delete it first.
+- While the pipeline is busy (for example right after the server starts), `delete_document` answers
+  HTTP 200 `{"status":"busy"}` and deletes nothing. Delete only when `pipeline_status.busy` is false,
+  check the body for `"status":"deletion_started"`, retry on `busy`, then poll `/documents/paginated`.
+- The extraction cache (`ENABLE_LLM_CACHE_FOR_EXTRACT`, on) makes delete plus re-upload replay the old
+  extraction; send `"delete_llm_cache": true` with the delete to re-extract. The query cache
+  `ENABLE_LLM_CACHE` is on in code but `false` in env.example; `lightrag-clean-llmqc` clears it.
 - Changing the embedding model invalidates every vector. Never delete the working directory of a real
   corpus; the README points to `lightrag-rebuild-vdb` (server stopped) instead.
-- Query answers are cached by default (`ENABLE_LLM_CACHE`); `lightrag-clean-llmqc` clears them after a re-index.
 - An exposed server spends the key owner's LLM quota; keep it on loopback or set `LIGHTRAG_API_KEY`.
 
 ## Rules
