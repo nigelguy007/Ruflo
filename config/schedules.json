@@ -1,0 +1,10 @@
+[
+  {
+    "id": "nightly-dependencies",
+    "name": "Nightly dependency check",
+    "playbookId": "nightly-dependency-check",
+    "enabled": false,
+    "everyMinutes": null,
+    "dailyAt": "02:30"
+  }
+]

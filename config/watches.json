@@ -1,0 +1,42 @@
+[
+  {
+    "id": "sentry-new-issue",
+    "name": "New production error",
+    "source": "sentry",
+    "kinds": ["issue.created"],
+    "match": {},
+    "playbookId": "error-to-fix",
+    "enabled": true,
+    "dedupeMinutes": 720
+  },
+  {
+    "id": "github-red-main",
+    "name": "Default branch went red",
+    "source": "github",
+    "kinds": ["check_run.failed"],
+    "match": {},
+    "playbookId": "red-main",
+    "enabled": true,
+    "dedupeMinutes": 120
+  },
+  {
+    "id": "github-pr-opened",
+    "name": "Pull request opened",
+    "source": "github",
+    "kinds": ["pull_request.opened"],
+    "match": {},
+    "playbookId": "review-pull-request",
+    "enabled": true,
+    "dedupeMinutes": 0
+  },
+  {
+    "id": "manual-error",
+    "name": "Error reported by hand",
+    "source": "manual",
+    "kinds": ["manual.error"],
+    "match": {},
+    "playbookId": "error-to-fix",
+    "enabled": true,
+    "dedupeMinutes": 60
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "id": "review-pull-request",
+  "name": "Review a new pull request",
+  "description": "Read-only. Runs the tests and reviews the diff of a newly opened pull request, then reports. Nothing is merged, so no decision is needed.",
+  "version": 1,
+  "budget": { "maxMinutes": 20, "maxAgentSteps": 2, "maxHandoffs": 1 },
+  "steps": [
+    {
+      "id": "tests",
+      "kind": "command",
+      "title": "Run the test suite",
+      "run": ["npm", "test"],
+      "expectExit": 0,
+      "timeoutSeconds": 900
+    },
+    {
+      "id": "review",
+      "kind": "agent",
+      "title": "Review the diff",
+      "operator": "checker",
+      "instruction": "Review the pull request named in the signal. List concrete findings with file and line, or state that there are none.",
+      "timeoutSeconds": 600
+    }
+  ]
+}

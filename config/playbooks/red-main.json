@@ -1,0 +1,50 @@
+{
+  "id": "red-main",
+  "name": "Default branch went red",
+  "description": "When a check fails on the default branch, find the commit that broke it, prepare a fix and ask a person before pushing.",
+  "version": 1,
+  "budget": { "maxMinutes": 30, "maxAgentSteps": 4, "maxHandoffs": 3 },
+  "steps": [
+    {
+      "id": "diagnose",
+      "kind": "agent",
+      "title": "Find what broke the build",
+      "operator": "inspector",
+      "instruction": "Read the failing check output from the signal. Name the commit that introduced the failure and the reason it fails.",
+      "handoffTo": "fitter",
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "fix",
+      "kind": "agent",
+      "title": "Prepare the fix",
+      "operator": "fitter",
+      "instruction": "Fix the failure identified above on a new branch. Keep the change minimal and open a pull request.",
+      "retries": 1,
+      "timeoutSeconds": 1200
+    },
+    {
+      "id": "tests",
+      "kind": "command",
+      "title": "Run the test suite",
+      "run": ["npm", "test"],
+      "expectExit": 0,
+      "timeoutSeconds": 900
+    },
+    {
+      "id": "approve",
+      "kind": "gate",
+      "title": "Merge the fix",
+      "question": "Merge this fix into the default branch?",
+      "onReject": "stop"
+    },
+    {
+      "id": "merge",
+      "kind": "command",
+      "title": "Merge the pull request",
+      "run": ["gh", "pr", "merge", "--squash"],
+      "expectExit": 0,
+      "timeoutSeconds": 300
+    }
+  ]
+}

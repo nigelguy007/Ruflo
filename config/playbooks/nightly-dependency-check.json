@@ -1,0 +1,56 @@
+{
+  "id": "nightly-dependency-check",
+  "name": "Nightly dependency check",
+  "description": "Once a night, list dependencies with known advisories, prepare one upgrade pull request and ask a person before it merges.",
+  "version": 1,
+  "budget": { "maxMinutes": 40, "maxAgentSteps": 3, "maxHandoffs": 2 },
+  "steps": [
+    {
+      "id": "audit",
+      "kind": "command",
+      "title": "Audit installed dependencies",
+      "run": ["npm", "audit", "--omit=dev"],
+      "timeoutSeconds": 300
+    },
+    {
+      "id": "triage",
+      "kind": "agent",
+      "title": "Pick the upgrades worth doing",
+      "operator": "inspector",
+      "instruction": "Read the audit output. Pick only upgrades that close a known advisory and are not major version jumps. Explain each choice in one line.",
+      "handoffTo": "fitter",
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "upgrade",
+      "kind": "agent",
+      "title": "Prepare the upgrade pull request",
+      "operator": "fitter",
+      "instruction": "Apply the upgrades chosen above on a new branch and open one pull request.",
+      "timeoutSeconds": 1200
+    },
+    {
+      "id": "tests",
+      "kind": "command",
+      "title": "Run the test suite",
+      "run": ["npm", "test"],
+      "expectExit": 0,
+      "timeoutSeconds": 900
+    },
+    {
+      "id": "approve",
+      "kind": "gate",
+      "title": "Merge the upgrades",
+      "question": "Merge these dependency upgrades?",
+      "onReject": "stop"
+    },
+    {
+      "id": "merge",
+      "kind": "command",
+      "title": "Merge the pull request",
+      "run": ["gh", "pr", "merge", "--squash"],
+      "expectExit": 0,
+      "timeoutSeconds": 300
+    }
+  ]
+}

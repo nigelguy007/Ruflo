@@ -1,0 +1,68 @@
+{
+  "id": "error-to-fix",
+  "name": "Production error to shipped fix",
+  "description": "Reproduce a new production error, fix it with a regression test, have a second operator review it, then stop and ask a person before anything merges or deploys.",
+  "version": 1,
+  "budget": { "maxMinutes": 45, "maxAgentSteps": 6, "maxHandoffs": 4 },
+  "steps": [
+    {
+      "id": "reproduce",
+      "kind": "agent",
+      "title": "Reproduce the error",
+      "operator": "inspector",
+      "instruction": "Reproduce the error described in the signal. Report the smallest reproduction, the likely cause and the affected code path.",
+      "handoffTo": "fitter",
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "fix",
+      "kind": "agent",
+      "title": "Write the fix and a regression test",
+      "operator": "fitter",
+      "instruction": "Using the reproduction above, add a failing regression test, then the smallest fix that makes it pass. Open a pull request.",
+      "handoffTo": "checker",
+      "retries": 1,
+      "timeoutSeconds": 1200
+    },
+    {
+      "id": "tests",
+      "kind": "command",
+      "title": "Run the test suite",
+      "run": ["npm", "test"],
+      "expectExit": 0,
+      "timeoutSeconds": 900
+    },
+    {
+      "id": "review",
+      "kind": "agent",
+      "title": "Review the diff in a fresh session",
+      "operator": "checker",
+      "instruction": "Review the pull request from the previous step as an independent reviewer. List concrete findings, or state that there are none.",
+      "handoffTo": "dispatcher",
+      "timeoutSeconds": 600
+    },
+    {
+      "id": "approve",
+      "kind": "gate",
+      "title": "Merge and deploy",
+      "question": "Merge this fix and deploy it to production?",
+      "onReject": "stop"
+    },
+    {
+      "id": "merge",
+      "kind": "command",
+      "title": "Merge the pull request",
+      "run": ["gh", "pr", "merge", "--squash"],
+      "expectExit": 0,
+      "timeoutSeconds": 300
+    },
+    {
+      "id": "watch",
+      "kind": "agent",
+      "title": "Watch the rollout",
+      "operator": "dispatcher",
+      "instruction": "Watch the deploy of the merged fix. Compare the error rate and latency before and after, and report the numbers.",
+      "timeoutSeconds": 900
+    }
+  ]
+}

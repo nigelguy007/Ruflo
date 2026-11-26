@@ -1,0 +1,195 @@
+/*
+ * Switchyard design tokens. Shared by the landing page and the console.
+ *
+ * The visual idea is a rail yard signal box at night: dark ink surfaces,
+ * hairline rules, and lamps that only light up when something needs attention.
+ * Colour carries state and nothing else:
+ *   lunar  (cool blue-white)  brand, links, focus, "proceed"
+ *   clear  (green)            succeeded, verified
+ *   caution(amber)            waiting on a person
+ *   stop   (red)              failed, rejected
+ * Type: Barlow Semi Condensed for headings (it descends from road and rail
+ * signage), Barlow for reading, IBM Plex Mono for ids, hashes and commands.
+ * The fonts ship inside the bundle via @fontsource; the product is self-hosted
+ * and must never fetch anything from a third party.
+ */
+
+:root {
+  color-scheme: dark;
+
+  --ink-0: #0c0f12;
+  --ink-1: #12161a;
+  --ink-2: #181d22;
+  --ink-3: #20272e;
+  --rule: #2a323a;
+  --rule-strong: #3a444e;
+
+  --text: #e7ecef;
+  --text-dim: #a3afb8;
+  --text-faint: #6e7a84;
+
+  --lunar: #9cc2ff;
+  --lunar-strong: #c9dcff;
+  --lunar-wash: rgba(156, 194, 255, 0.12);
+  --clear: #37c77f;
+  --clear-wash: rgba(55, 199, 127, 0.14);
+  --caution: #f2a93b;
+  --caution-wash: rgba(242, 169, 59, 0.14);
+  --stop: #ef5a5f;
+  --stop-wash: rgba(239, 90, 95, 0.14);
+  --on-accent: #0c0f12;
+
+  --font-display: 'Barlow Semi Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2.25rem;
+  --text-3xl: clamp(2.5rem, 6vw, 4.25rem);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+  --space-9: 112px;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.35);
+  --lamp-glow: 0 0 0 3px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --fast: 120ms;
+  --slow: 320ms;
+
+  --page-gutter: 16px;
+  --measure: 62ch;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --ink-0: #f4f5f3;
+    --ink-1: #fbfbfa;
+    --ink-2: #ffffff;
+    --ink-3: #eceeeb;
+    --rule: #dcdfdb;
+    --rule-strong: #c2c7c2;
+    --text: #14181b;
+    --text-dim: #4d5860;
+    --text-faint: #7b858c;
+    --lunar: #1f55c9;
+    --lunar-strong: #143a8f;
+    --lunar-wash: rgba(31, 85, 201, 0.09);
+    --clear: #12804b;
+    --clear-wash: rgba(18, 128, 75, 0.1);
+    --caution: #a8650a;
+    --caution-wash: rgba(168, 101, 10, 0.11);
+    --stop: #c2262c;
+    --stop-wash: rgba(194, 38, 44, 0.09);
+    --on-accent: #ffffff;
+    --shadow-raised: 0 1px 2px rgba(20, 24, 27, 0.06), 0 8px 24px rgba(20, 24, 27, 0.07);
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --ink-0: #f4f5f3;
+  --ink-1: #fbfbfa;
+  --ink-2: #ffffff;
+  --ink-3: #eceeeb;
+  --rule: #dcdfdb;
+  --rule-strong: #c2c7c2;
+  --text: #14181b;
+  --text-dim: #4d5860;
+  --text-faint: #7b858c;
+  --lunar: #1f55c9;
+  --lunar-strong: #143a8f;
+  --lunar-wash: rgba(31, 85, 201, 0.09);
+  --clear: #12804b;
+  --clear-wash: rgba(18, 128, 75, 0.1);
+  --caution: #a8650a;
+  --caution-wash: rgba(168, 101, 10, 0.11);
+  --stop: #c2262c;
+  --stop-wash: rgba(194, 38, 44, 0.09);
+  --on-accent: #ffffff;
+  --shadow-raised: 0 1px 2px rgba(20, 24, 27, 0.06), 0 8px 24px rgba(20, 24, 27, 0.07);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink-0);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--lunar);
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lunar);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* The lamp: a small status light. State is always paired with a text label. */
+.lamp {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: none;
+}
+.lamp[data-state='lunar'] {
+  background: var(--lunar);
+  box-shadow: var(--lamp-glow) var(--lunar-wash);
+}
+.lamp[data-state='clear'] {
+  background: var(--clear);
+  box-shadow: var(--lamp-glow) var(--clear-wash);
+}
+.lamp[data-state='caution'] {
+  background: var(--caution);
+  box-shadow: var(--lamp-glow) var(--caution-wash);
+}
+.lamp[data-state='stop'] {
+  background: var(--stop);
+  box-shadow: var(--lamp-glow) var(--stop-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
