@@ -1,0 +1,166 @@
+/*
+ * The Floor: each operator is a road in the yard. Who they are sits beside
+ * the road; whatever they are moving sits on the rails as a wagon. An empty
+ * road is just track.
+ */
+
+.floor { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-7); min-width: 0; }
+.floor > section { min-width: 0; }
+
+@media (min-width: 1280px) {
+  .floor {
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(32px, 3.5vw, 56px);
+  }
+}
+.floor__operators { container: roads / inline-size; }
+
+/* ── Roads ─────────────────────────────────────────────────────────────────── */
+
+.roads { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+
+.road {
+  --road-c: var(--rule-strong);
+  --rail-c: color-mix(in srgb, var(--text-faint) 70%, var(--rule-strong));
+  --tie-c: var(--rule);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'who' 'role' 'state' 'track';
+  gap: 6px 28px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.road[data-status='working'] {
+  --road-c: var(--lunar);
+  --rail-c: color-mix(in srgb, var(--lunar) 55%, var(--rule-strong));
+}
+
+.road[data-status='waiting'] {
+  --road-c: var(--caution);
+  --rail-c: color-mix(in srgb, var(--caution) 55%, var(--rule-strong));
+}
+
+@container roads (min-width: 40rem) {
+  .road {
+    grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+    grid-template-areas: 'who track' 'role track' 'state track';
+    align-items: start;
+  }
+}
+
+.road__who {
+  grid-area: who;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  min-width: 0;
+}
+.road__name { font-size: var(--text-xl); font-weight: 600; letter-spacing: 0.02em; }
+.road__handle { color: var(--text-quiet); font-size: var(--text-sm); }
+.road__role { grid-area: role; color: var(--text-dim); font-size: var(--text-sm); }
+
+.road__state {
+  grid-area: state;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 4px;
+}
+
+.road__harness .mono {
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-quiet);
+  font-size: var(--text-xs);
+}
+
+/* The road itself: rails and ties across the full width, fading out. */
+.road__track {
+  grid-area: track;
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 0 10px 16px;
+}
+
+.road__track::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 26px;
+  transform: translateY(-50%);
+  background:
+    linear-gradient(var(--rail-c), var(--rail-c)) 0 6px / 100% 2px no-repeat,
+    linear-gradient(var(--rail-c), var(--rail-c)) 0 calc(100% - 6px) / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, var(--tie-c) 0 4px, transparent 4px 13px);
+  mask-image: linear-gradient(90deg, #000 70%, transparent);
+}
+
+/* The wagon: what this operator is moving right now. */
+.road__load {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--rule-strong);
+  border-left: 4px solid var(--road-c);
+  border-radius: var(--radius-sm);
+  background: var(--ink-2);
+  box-shadow: var(--shadow-raised);
+}
+.road__activity { flex: 1 1 14rem; min-width: 0; color: var(--text); }
+.road__run { min-width: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+
+@media (max-width: 720px), (pointer: coarse) {
+  .road__run { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+.road__empty {
+  position: relative;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ink-0);
+  color: var(--text-quiet);
+  font-size: var(--text-sm);
+}
+
+/* ── Active runs ───────────────────────────────────────────────────────────── */
+
+.active-runs { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+
+.active-run {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.active-run__title {
+  max-width: 100%;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.active-run__title:hover { color: var(--lunar-ink); text-decoration: underline; }
+.active-run__meta { color: var(--text-quiet); font-size: var(--text-sm); }

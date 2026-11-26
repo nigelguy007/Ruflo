@@ -1,0 +1,98 @@
+/*
+ * Landing page theme layer.
+ * Dark is the shared signal box at night. Light is the same box by day:
+ * cool steel greys and drafting-film panels instead of an off-white page,
+ * with deeper state colours so text in them keeps AA contrast.
+ * Lamps get their own fills, because a lamp must stay bright on any surface
+ * while text in a state colour must stay dark enough to read.
+ */
+:root {
+  --lamp-lunar: var(--lunar);
+  --lamp-clear: var(--clear);
+  --lamp-caution: var(--caution);
+  --lamp-stop: var(--stop);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --ink-0: #e3e8ec;
+    --ink-1: #edf1f4;
+    --ink-2: #f8fafb;
+    --ink-3: #d7dee4;
+    --rule: #c3ccd4;
+    --rule-strong: #95a2ae;
+    --text: #0e1418;
+    --text-dim: #3d4955;
+    --text-faint: #64717c;
+    --lunar: #1a4fbf;
+    --lunar-strong: #123a8f;
+    --lunar-wash: rgba(26, 79, 191, 0.1);
+    --clear: #0a6b3d;
+    --clear-wash: rgba(10, 107, 61, 0.1);
+    --caution: #8a4f00;
+    --caution-wash: rgba(138, 79, 0, 0.11);
+    --stop: #b0161d;
+    --stop-wash: rgba(176, 22, 29, 0.09);
+    --on-accent: #ffffff;
+    --lamp-lunar: #2f6ee0;
+    --lamp-clear: #12915a;
+    --lamp-caution: #c77700;
+    --lamp-stop: #d2262d;
+    --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(14, 20, 24, 0.08),
+      0 10px 28px rgba(14, 20, 24, 0.08);
+  }
+}
+
+:root[data-theme='light'] {
+  --ink-0: #e3e8ec;
+  --ink-1: #edf1f4;
+  --ink-2: #f8fafb;
+  --ink-3: #d7dee4;
+  --rule: #c3ccd4;
+  --rule-strong: #95a2ae;
+  --text: #0e1418;
+  --text-dim: #3d4955;
+  --text-faint: #64717c;
+  --lunar: #1a4fbf;
+  --lunar-strong: #123a8f;
+  --lunar-wash: rgba(26, 79, 191, 0.1);
+  --clear: #0a6b3d;
+  --clear-wash: rgba(10, 107, 61, 0.1);
+  --caution: #8a4f00;
+  --caution-wash: rgba(138, 79, 0, 0.11);
+  --stop: #b0161d;
+  --stop-wash: rgba(176, 22, 29, 0.09);
+  --on-accent: #ffffff;
+  --lamp-lunar: #2f6ee0;
+  --lamp-clear: #12915a;
+  --lamp-caution: #c77700;
+  --lamp-stop: #d2262d;
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(14, 20, 24, 0.08),
+    0 10px 28px rgba(14, 20, 24, 0.08);
+}
+
+.lamp[data-state='lunar'] {
+  background: var(--lamp-lunar);
+}
+.lamp[data-state='clear'] {
+  background: var(--lamp-clear);
+}
+.lamp[data-state='caution'] {
+  background: var(--lamp-caution);
+}
+.lamp[data-state='stop'] {
+  background: var(--lamp-stop);
+}
+
+/* The theme icon turns half a revolution with the theme. */
+.icon-btn .ic {
+  transition: transform var(--slow) var(--ease);
+}
+:root[data-theme='light'] .icon-btn .ic {
+  transform: rotate(180deg);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .icon-btn .ic {
+    transform: rotate(180deg);
+  }
+}

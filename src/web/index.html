@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Switchyard: a self-hosted control room for coding agents</title>
+    <meta name="description" content="Switchyard runs coding agents through playbooks kept in your repository. A run stops at each gate, where a person decides with the evidence labelled: verified by the engine, or claimed by an agent." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Switchyard" />
+    <meta property="og:title" content="Switchyard: agents do the work, you make the decisions" />
+    <meta property="og:description" content="A self-hosted control room for coding agents. Playbooks live in your repository, runs stop at gates, and every line of evidence says whether the engine verified it or an agent claimed it." />
+    <meta name="theme-color" content="#0c0f12" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#e3e8ec" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="../../node_modules/@fontsource/barlow-semi-condensed/files/barlow-semi-condensed-latin-600-normal.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="../../node_modules/@fontsource/barlow/files/barlow-latin-400-normal.woff2" />
+    <link rel="stylesheet" href="./landing/landing.css" />
+    <script type="module" src="./landing/landing.ts"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+      <symbol id="i-check" viewBox="0 0 16 16"><path d="M2.5 8.6l3.4 3.4 7.6-7.8" /></symbol>
+      <symbol id="i-said" viewBox="0 0 16 16"><path d="M2.5 3h11v7.5H8.2L5 13.4v-2.9H2.5z" /></symbol>
+      <symbol id="i-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" /></symbol>
+      <symbol id="i-go" viewBox="0 0 16 16"><path d="M2 8h11M9 3.8L13.2 8 9 12.2" /></symbol>
+      <symbol id="i-theme" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" /><path class="fill" d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" /></symbol>
+    </svg>
+
+    <header class="top">
+      <div class="top-in">
+        <a class="brand" href="/" aria-label="Switchyard, home">
+          <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M5 22h22M11 22c7 0 8-11 16-11" /><circle cx="11" cy="22" r="3" /></svg>
+          Switchyard
+        </a>
+        <nav aria-label="Sections">
+          <a href="#how">How it works</a>
+          <a href="#evidence">Evidence</a>
+          <a href="#playbooks">Playbooks</a>
+          <a href="#limits">Limits</a>
+          <a href="#run">Run it</a>
+        </nav>
+        <button class="icon-btn" id="theme-toggle" type="button" hidden aria-label="Switch to light theme">
+          <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-theme" /></svg>
+        </button>
+        <a class="btn btn-go btn-sm" href="/app/"><span class="wide">Open the&nbsp;</span>console</a>
+      </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="sec hero" aria-labelledby="hero-h">
+        <div class="wrap">
+          <p class="eyebrow"><span class="lamp" data-state="lunar"></span>Self-hosted control room for coding agents</p>
+          <h1 id="hero-h"><span>Agents do the work.</span> <span>You make the decisions.</span></h1>
+          <div class="hero-row">
+            <div class="pitch">
+              <p class="lede">Switchyard runs coding agents through playbooks kept in your repository. At each gate the run stops and shows you two things separately: what the engine verified itself, and what an agent only claimed.</p>
+              <p class="cta">
+                <a class="btn btn-go" href="/app/">Open the console <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-go" /></svg></a>
+                <a class="btn" href="#how">See how it works</a>
+              </p>
+              <p class="fine">It starts in simulate mode, with scripted agents and dry-run commands, so you can watch a run end to end before you point it at a real repository.</p>
+            </div>
+            <figure class="run" data-run aria-labelledby="run-cap">
+              <div class="run-body">
+                <div class="run-track">
+                  <p class="run-line"><span class="label">Run</span> <code>error-to-fix</code> <span>4 of 7 steps done</span></p>
+                  <ol class="run-steps">
+                    <li><span class="node"><span class="lamp" data-state="clear"></span></span><code>reproduce</code> <span>Inspector<span class="vh">, done</span></span></li>
+                    <li><span class="node"><span class="lamp" data-state="clear"></span></span><code>fix</code> <span>Fitter<span class="vh">, done</span></span></li>
+                    <li class="by-engine"><span class="node"><span class="lamp" data-state="clear"></span></span><code>tests</code> <span>Engine<span class="vh">, done</span></span></li>
+                    <li><span class="node"><span class="lamp" data-state="clear"></span></span><code>review</code> <span>Checker<span class="vh">, done</span></span></li>
+                  </ol>
+                </div>
+                <div class="gate">
+                  <div class="gate-top">
+                    <p class="gate-head"><span class="label">Gate <code>approve</code></span> <span class="gate-state" data-run-state>Waiting on a person</span></p>
+                    <p class="gate-q">Merge this fix and deploy it to production?</p>
+                    <div class="ev">
+                      <p class="label"><svg class="ic ok" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Verified by the engine</p>
+                      <ul>
+                        <li>The engine ran <code>npm test</code> itself.</li>
+                        <li>It saw exit code 0, as the playbook expects.</li>
+                      </ul>
+                    </div>
+                    <div class="ev ev-said">
+                      <p class="label"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-said" /></svg>Claimed by an agent</p>
+                      <ul>
+                        <li><code>@checker</code> reports no findings in the diff.</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="gate-act">
+                    <span class="seat"><span class="lamp sig" data-state="caution" data-run-lamp></span></span>
+                    <button class="btn btn-sm" type="button" disabled aria-pressed="false" data-verdict="approved" data-lamp="clear" data-state-label="Approved" data-says="Approved. The engine merges the pull request, and then Dispatcher watches the rollout."><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Approve</button>
+                    <button class="btn btn-sm" type="button" disabled aria-pressed="false" data-verdict="rejected" data-lamp="stop" data-state-label="Rejected" data-says="Rejected. The run stops here and nothing is merged."><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x" /></svg>Reject</button>
+                    <p class="gate-says" role="status" data-run-says>If you reject, the run stops here.</p>
+                  </div>
+                </div>
+              </div>
+              <figcaption id="run-cap">An example gate from the seed playbook <code>error-to-fix</code>. The buttons change this picture only.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec sec-tight" id="problem" aria-labelledby="problem-h">
+        <div class="wrap split">
+          <header>
+            <p class="plate"><b>01</b>The problem</p>
+            <h2 id="problem-h">A person still carries every thread an agent starts.</h2>
+          </header>
+          <div>
+            <p class="lede">A coding agent can turn an error report into a pull request. Someone still starts the session, hands over the context, waits, and reads the summary at the end.</p>
+            <ol class="chores">
+              <li><h3>Shepherd every thread</h3><p>You start each session, give it the context, check on it and pass its result to the next one, and you do that for every task at once.</p></li>
+              <li><h3>Re-read every claim</h3><p>A summary that says the tests pass is still only a sentence, so you run the tests again yourself before you trust it.</p></li>
+              <li><h3>Decide when it is safe to merge</h3><p>The decision reaches you with no line drawn between what was checked and what an agent only said.</p></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec sec-alt" id="how" aria-labelledby="how-h">
+        <div class="wrap">
+          <header class="head-split">
+            <div>
+              <p class="plate"><b>02</b>How it works</p>
+              <h2 id="how-h">A signal starts a playbook, and the playbook stops at a gate.</h2>
+            </div>
+            <p class="lede">When something happens in your tools, a watch matches the signal to a playbook, and the playbook runs until a person has to decide.</p>
+          </header>
+          <ol class="yard">
+            <li class="stage">
+              <div class="fig fig-in" aria-hidden="true">
+                <ul class="feeds">
+                  <li class="lit">Sentry issue</li>
+                  <li>Failed check on the default branch</li>
+                  <li>New pull request</li>
+                  <li>Schedule</li>
+                  <li>Signal sent by hand</li>
+                </ul>
+                <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><path d="M0 30H30C50 30 55 50 75 50M0 50H100M0 70H30C50 70 55 50 75 50M0 90H22C52 90 55 50 85 50" /><path class="lit" d="M0 10H22C52 10 55 50 85 50H100" /></svg>
+              </div>
+              <div class="say"><h3><b>1</b>Signal</h3><p>A signal can be a Sentry issue, a failed check on the default branch, a newly opened pull request, a schedule, or one you send by hand. Webhooks are checked against the provider’s HMAC signature before anything runs.</p></div>
+            </li>
+            <li class="stage">
+              <div class="fig" aria-hidden="true">
+                <svg class="lines" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><path d="M10 50C21 50 20 20 31 20H34M10 50C21 50 20 80 31 80H34" /></svg>
+                <span class="st st-watch" data-l="watch"></span>
+                <span class="tag tag-up">red-main</span>
+                <span class="tag tag-on">error-to-fix</span>
+                <span class="tag tag-down">review-pull-request</span>
+              </div>
+              <div class="say"><h3><b>2</b>Watch</h3><p>A watch matches the signal to a playbook. In this picture a Sentry issue is switched onto <code>error-to-fix</code>.</p></div>
+            </li>
+            <li class="stage">
+              <div class="fig" aria-hidden="true">
+                <span class="st st-agent" data-l="agent step"></span>
+                <span class="st st-cmd" data-l="command step"></span>
+              </div>
+              <div class="say"><h3><b>3</b>Playbook</h3><p>In an agent step, a named operator works in a coding session through the Claude Code or Codex command line on your machine. In a command step, the engine runs the command itself and records the exit code.</p></div>
+            </li>
+            <li class="stage stage-gate">
+              <div class="fig" aria-hidden="true">
+                <span class="st st-gate" data-l="gate"><span class="lamp" data-state="caution"></span></span>
+                <svg class="lines fork" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><path d="M0 50C18 50 18 82 36 82H62" /><path class="halt" d="M62 70V94" /></svg>
+                <span class="tag tag-yes">approve</span>
+                <span class="tag tag-no">reject</span>
+              </div>
+              <div class="say"><h3><b>4</b>Gate</h3><p>The run stops until a person answers. If they approve, the run continues, and if they reject, this playbook stops the run.</p></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="sec" id="evidence" aria-labelledby="evidence-h">
+        <div class="wrap">
+          <header class="head-split">
+            <div>
+              <p class="plate"><b>03</b>Evidence</p>
+              <h2 id="evidence-h">Every line of evidence says where it came from.</h2>
+            </div>
+            <p class="lede">A gate sorts what the run produced into two groups. An agent’s claim may well be right, but nobody has checked it yet, and its label says so.</p>
+          </header>
+          <div class="proof">
+            <article class="proof-ok">
+              <h3><svg class="ic ok" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Verified by the engine</h3>
+              <p>The engine did the work itself and recorded what happened.</p>
+              <ul>
+                <li><code>npm test</code><span>The engine ran the command itself, as a command step.</span></li>
+                <li><code>exit 0</code><span>This is the exit code the engine saw, and the playbook expected 0.</span></li>
+              </ul>
+            </article>
+            <article class="proof-said">
+              <h3><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-said" /></svg>Claimed by an agent</h3>
+              <p>An agent wrote it in its report, and the engine did not check it.</p>
+              <ul>
+                <li><code>@fitter</code><span>“The regression test fails without the fix.”</span></li>
+                <li><code>@checker</code><span>“No findings in the diff.”</span></li>
+              </ul>
+            </article>
+          </div>
+          <p class="fine proof-note">In simulate mode a third label appears: simulated. It marks output from a scripted run, which proves nothing about your code.</p>
+        </div>
+      </section>
+
+      <section class="sec sec-alt" id="playbooks" aria-labelledby="playbooks-h">
+        <div class="wrap split split-code">
+          <div>
+            <p class="plate"><b>04</b>Playbooks</p>
+            <h2 id="playbooks-h">A playbook is a JSON file in your repository.</h2>
+            <p class="lede">It is reviewed in a pull request like any other code. When you change which operator reviews, which command runs or where a person must decide, the change shows up as a diff.</p>
+            <ul class="pins">
+              <li><b>A</b><span><code>budget</code> sets the limits for the whole run.</span></li>
+              <li><b>B</b><span>An <code>agent</code> step names an operator and who receives the handoff.</span></li>
+              <li><b>C</b><span>A <code>command</code> step is run by the engine, which compares the exit code.</span></li>
+              <li><b>D</b><span>A <code>gate</code> step is a question for a person.</span></li>
+            </ul>
+          </div>
+          <figure class="file">
+            <figcaption><code>config/playbooks/error-to-fix.json</code><span>Excerpt, 3 of 7 steps</span></figcaption>
+<pre tabindex="0" role="region" aria-label="Excerpt of error-to-fix.json"><code>{
+  <i>"id"</i>: "error-to-fix",
+  <i>"name"</i>: "Production error to shipped fix",
+<span class="hl" data-pin="A">  <i>"budget"</i>: { <i>"maxMinutes"</i>: <b>45</b>, <i>"maxAgentSteps"</i>: <b>6</b>, <i>"maxHandoffs"</i>: <b>4</b> },</span>
+  <i>"steps"</i>: [
+    <em>…</em>
+    {
+      <i>"id"</i>: "fix",
+<span class="hl" data-pin="B">      <i>"kind"</i>: "agent",</span>
+      <i>"title"</i>: "Write the fix and a regression test",
+      <i>"operator"</i>: "fitter",
+      <em>…</em>
+      <i>"handoffTo"</i>: "checker",
+      <em>…</em>
+    },
+    {
+      <i>"id"</i>: "tests",
+<span class="hl" data-pin="C">      <i>"kind"</i>: "command",</span>
+      <i>"title"</i>: "Run the test suite",
+      <i>"run"</i>: ["npm", "test"],
+      <i>"expectExit"</i>: <b>0</b>,
+      <i>"timeoutSeconds"</i>: <b>900</b>
+    },
+    <em>…</em>
+    {
+      <i>"id"</i>: "approve",
+<span class="hl" data-pin="D">      <i>"kind"</i>: "gate",</span>
+      <i>"title"</i>: "Merge and deploy",
+      <i>"question"</i>: "Merge this fix and deploy it to production?",
+      <i>"onReject"</i>: "stop"
+    },
+    <em>…</em>
+  ]
+}</code></pre>
+          </figure>
+        </div>
+      </section>
+
+      <section class="sec" id="limits" aria-labelledby="limits-h">
+        <div class="wrap">
+          <header>
+            <p class="plate"><b>05</b>Limits and the ledger</p>
+            <h2 id="limits-h">Every run has hard limits and leaves a log you can verify.</h2>
+          </header>
+          <div class="split split-even limits">
+            <div>
+              <h3>Each playbook carries three limits</h3>
+              <dl class="budget">
+                <div><dt>minutes of wall-clock time <code>maxMinutes</code></dt><dd>45</dd></div>
+                <div><dt>agent steps <code>maxAgentSteps</code></dt><dd>6</dd></div>
+                <div><dt>handoffs from one operator to another <code>maxHandoffs</code></dt><dd>4</dd></div>
+              </dl>
+              <p class="fine">These numbers are the budget of <code>error-to-fix</code>.</p>
+              <p class="pause"><span class="lever" aria-hidden="true"></span><span><strong>There is one global pause switch.</strong> While it is on, no new step starts, and each run carries on once the pause is lifted.</span></p>
+            </div>
+            <div>
+              <h3>Every action goes into the ledger</h3>
+              <p>Each entry is appended to a log and carries the hash of the entry before it. If anyone changes or removes an entry, the chain no longer matches, and you can check the chain yourself.</p>
+              <div class="ledger-wrap">
+                <table class="ledger">
+                  <caption class="vh">An excerpt of five ledger entries, in which each prevHash equals the hash of the entry above it.</caption>
+                  <thead><tr><th scope="col">seq</th><th scope="col">actor</th><th scope="col">kind</th><th scope="col">prevHash</th><th scope="col">hash</th></tr></thead>
+                  <tbody>
+                    <tr><td>12</td><td>fitter</td><td>handoff</td><td><span>h11</span></td><td><span>h12</span></td></tr>
+                    <tr><td>13</td><td>system</td><td>command</td><td><span>h12</span></td><td><span>h13</span></td></tr>
+                    <tr><td>14</td><td>checker</td><td>handoff</td><td><span>h13</span></td><td><span>h14</span></td></tr>
+                    <tr><td>15</td><td>system</td><td>gate_opened</td><td><span>h14</span></td><td><span>h15</span></td></tr>
+                    <tr><td>16</td><td>human</td><td>gate_resolved</td><td><span>h15</span></td><td><span>h16</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="fine">The hashes are shortened to h11, h12 and so on for this picture.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec sec-alt" id="operators" aria-labelledby="operators-h">
+        <div class="wrap">
+          <header class="head-split">
+            <div>
+              <p class="plate"><b>06</b>Operators</p>
+              <h2 id="operators-h">Four operators ship with it, and each has one job.</h2>
+            </div>
+            <p class="lede">They come as seed configuration, with a name, a role and written instructions for each one.</p>
+          </header>
+          <ol class="crew">
+            <li><h3>Inspector</h3><code>@inspector</code><p>Reproduces the error with the smallest failing case it can find, and says who is affected.</p><p class="rule">It never edits source files.</p></li>
+            <li><h3>Fitter</h3><code>@fitter</code><p>Writes the fix and a regression test as one focused change on a new branch.</p><p class="rule">It writes the failing test before the fix.</p></li>
+            <li><h3>Checker</h3><code>@checker</code><p>Reviews the diff in a fresh session, with no memory of how it was produced.</p><p class="rule">It never reviews a change it wrote.</p></li>
+            <li class="after-gate"><h3>Dispatcher</h3><code>@dispatcher</code><p>Ships the change, watches the rollout and reports the error rate and latency before and after.</p><p class="rule">It acts only after a person has approved.</p></li>
+          </ol>
+          <p class="memo"><span class="lamp" data-state="lunar"></span><span><strong>Memory goes through Ruflo.</strong> Each operator’s memory is kept in Ruflo when it is running, and in a local store when it is not.</span></p>
+        </div>
+      </section>
+
+      <section class="sec sec-tight" id="not" aria-labelledby="not-h">
+        <div class="wrap split">
+          <header>
+            <p class="plate"><b>07</b>Where the line ends</p>
+            <h2 id="not-h">What Switchyard does not do.</h2>
+            <p class="lede">Switchyard is a new project, so read this list before you plan any work around it.</p>
+          </header>
+          <div>
+            <ul class="stops">
+              <li>It is not a hosted service. You run it yourself.</li>
+              <li>It gives agents no cloud computers. They work on your machine.</li>
+              <li>No Slack or chat integration.</li>
+              <li>No mobile app.</li>
+              <li>No marketplace.</li>
+              <li>No multi-user accounts yet.</li>
+            </ul>
+            <p class="early"><span class="lamp" data-state="caution"></span><span><strong>Live mode is early and unproven.</strong> It is the mode in which operators work in a real repository checkout and command steps really run.</span></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec sec-alt" id="run" aria-labelledby="run-h">
+        <div class="wrap split split-even">
+          <div>
+            <p class="plate"><b>08</b>Run it</p>
+            <h2 id="run-h">It runs as one Node process with a SQLite file.</h2>
+            <p class="lede">Everything stays on your machine. It sends no telemetry and loads no third-party fonts or scripts.</p>
+            <p class="cta"><a class="btn btn-go" href="/app/">Open the console <svg class="ic" aria-hidden="true" focusable="false"><use href="#i-go" /></svg></a></p>
+          </div>
+          <div>
+            <pre class="term" tabindex="0" role="region" aria-label="Commands to run Switchyard"><code><span>npm install</span>
+<span>npm run build</span>
+<span>npm start</span></code></pre>
+            <p class="then">Then open <code>http://127.0.0.1:4310/app/</code> for the console. It needs Node 22.13 or later.</p>
+            <p class="fine">It starts in simulate mode, with scripted agents and dry-run commands. Watch a run end to end, then point it at a real repository.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="sec foot">
+      <div class="wrap">
+        <p><strong>Switchyard</strong> A self-hosted control room for coding agents.</p>
+        <a href="#main">Back to top</a>
+      </div>
+    </footer>
+  </body>
+</html>

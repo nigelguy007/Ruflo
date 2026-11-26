@@ -1,0 +1,409 @@
+/*
+ * Playbooks, limits and the ledger, operators, where the line ends, run it.
+ */
+
+/* 04 Playbooks */
+.split-code {
+  align-items: start;
+}
+.pins {
+  display: grid;
+  gap: 14px;
+  margin-top: 30px;
+}
+.pins li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+}
+.pins span {
+  color: var(--text-dim);
+}
+.pins code {
+  color: var(--text);
+}
+.pins b,
+.hl::after {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--lamp-lunar);
+  border-radius: 3px;
+  background: var(--lunar-wash);
+  font: 500 0.75rem/1 var(--font-mono);
+  color: var(--text);
+}
+.pins b {
+  transform: translateY(-1px);
+}
+.file {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--ink-0);
+  box-shadow: var(--shadow-raised);
+}
+.file figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+.file figcaption code {
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.file pre {
+  overflow-x: auto;
+  padding: 16px 0 18px;
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+.file pre:focus-visible {
+  outline-offset: -2px;
+}
+/* The left gutter carries the pins, so they stay in view while lines scroll. */
+.file pre > code {
+  display: inline-block;
+  min-width: 100%;
+  padding: 0 20px 0 46px;
+  font-size: inherit;
+  color: var(--text);
+}
+@media (min-width: 1100px) {
+  .split-code {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  }
+}
+@media (min-width: 1280px) {
+  .file pre {
+    font-size: 0.8125rem;
+  }
+}
+.file i,
+.file em {
+  font-style: normal;
+  color: var(--text-dim);
+}
+.file b {
+  font-weight: 500;
+}
+.hl {
+  position: relative;
+  display: inline-block;
+  width: calc(100% + 66px);
+  margin: 0 -20px 0 -46px;
+  padding: 0 20px 0 44px;
+  border-left: 2px solid var(--lamp-lunar);
+  background: var(--lunar-wash);
+}
+.hl::after {
+  content: attr(data-pin);
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  font-size: 0.6875rem;
+}
+
+/* 05 Limits and the ledger */
+.limits {
+  margin-top: clamp(32px, 4.5vw, 52px);
+}
+.limits h3 {
+  margin-bottom: 18px;
+}
+.budget div {
+  display: grid;
+  grid-template-columns: 3.6rem minmax(0, 1fr);
+  grid-template-areas: 'n t';
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+}
+.budget div:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+.budget dd {
+  grid-area: n;
+  font: 600 clamp(1.75rem, 1.4rem + 1.3vw, 2.625rem) / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.budget dt {
+  grid-area: t;
+}
+.budget dt code {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+.limits .fine {
+  margin-top: 12px;
+}
+.limits h3 + p {
+  max-width: 34em;
+  color: var(--text-dim);
+}
+.pause {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--ink-2);
+  color: var(--text-dim);
+}
+.lever {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 40px;
+}
+.lever::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 0;
+  height: 9px;
+  border-radius: 3px 3px 1px 1px;
+  background: var(--rule-strong);
+}
+.lever::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 6px;
+  height: 34px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--lamp-stop);
+  transform: rotate(-16deg);
+  transform-origin: 50% 100%;
+}
+.ledger-wrap {
+  margin-top: 22px;
+  overflow-x: auto;
+}
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font: 0.6875rem/1.4 var(--font-mono);
+}
+.ledger th,
+.ledger td {
+  padding: 9px 8px 9px 0;
+  text-align: left;
+  white-space: nowrap;
+}
+.ledger th {
+  padding-top: 0;
+  border-bottom: 1px solid var(--rule-strong);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.ledger td {
+  border-bottom: 1px solid var(--rule);
+}
+.ledger td span {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+}
+.ledger td:nth-child(4) span {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+@media (min-width: 480px) {
+  .ledger {
+    font-size: 0.8125rem;
+  }
+  .ledger th,
+  .ledger td {
+    padding-right: 14px;
+  }
+}
+
+/* 06 Operators: a duty roster, with the gate drawn across it. */
+.crew {
+  border-bottom: 1px solid var(--rule);
+}
+.crew li {
+  position: relative;
+  display: grid;
+  gap: 6px 28px;
+  padding: 22px 0 24px;
+  border-top: 1px solid var(--rule);
+}
+.crew h3 {
+  font-size: clamp(1.375rem, 1.1rem + 0.9vw, 1.875rem);
+}
+.crew code {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+.crew p {
+  max-width: 36em;
+  color: var(--text-dim);
+}
+.crew .rule {
+  display: flex;
+  gap: 10px;
+  color: var(--text);
+}
+.crew .rule::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.55em;
+  border: 1.5px solid var(--line);
+}
+.crew .after-gate {
+  padding-top: 62px;
+  border-top: 0;
+}
+/* A signal in its housing on a length of track, then the label. */
+.crew .after-gate::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 26px;
+  background:
+    radial-gradient(circle at 13px 50%, var(--lamp-caution) 0 5.5px, var(--ink-0) 6px 11px, var(--rule-strong) 11.5px 12.5px, transparent 13px)
+      0 0 / 26px 26px no-repeat,
+    linear-gradient(var(--rail), var(--rail)) 0 50% / 100% 2px no-repeat,
+    repeating-linear-gradient(90deg, var(--tie) 0 1px, transparent 1px 12px) 0 50% / 100% 9px no-repeat;
+}
+.crew .after-gate::after {
+  content: 'gate';
+  content: 'gate' / '';
+  position: absolute;
+  left: 34px;
+  top: 20px;
+  padding: 0 8px;
+  background: var(--bg);
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  transform: translateY(-50%);
+}
+.memo {
+  max-width: 46em;
+  margin-top: clamp(28px, 4vw, 40px);
+}
+.memo,
+.early {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  color: var(--text-dim);
+}
+.memo .lamp,
+.early .lamp {
+  margin-top: 0.55em;
+}
+@media (min-width: 600px) and (max-width: 859px) {
+  .crew li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+  .crew li > p {
+    grid-column: 2;
+  }
+  .crew li > p:first-of-type {
+    grid-row: 1;
+  }
+  .crew li > code {
+    grid-row: 2;
+  }
+}
+@media (min-width: 860px) {
+  .crew li {
+    grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) minmax(0, 4fr) minmax(0, 3fr);
+    align-items: baseline;
+  }
+}
+
+/* 07 Where the line ends: each item is a siding that stops at a buffer. */
+.stops li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.stops li:first-child {
+  border-top: 1px solid var(--rule);
+}
+.stops li::before,
+.stops li::after {
+  content: '';
+  flex: none;
+}
+.stops li::before {
+  order: -2;
+  width: 40px;
+  height: 9px;
+}
+.stops li::after {
+  order: -1;
+  width: 4px;
+  height: 20px;
+  margin-left: -14px;
+  border-radius: 1px;
+  background: var(--lamp-stop);
+}
+.early {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--ink-2);
+}
+
+/* 08 Run it */
+.term {
+  overflow-x: auto;
+  padding: 18px 20px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--ink-0);
+  font-size: 0.9375rem;
+  line-height: 1.8;
+}
+.term code {
+  font-size: inherit;
+}
+.term span::before {
+  content: '$ ';
+  content: '$ ' / '';
+  color: var(--text-dim);
+  user-select: none;
+}
+.then {
+  margin-top: 16px;
+}
+.then + .fine {
+  margin-top: 10px;
+}

@@ -1,0 +1,346 @@
+/*
+ * The problem, how it works (the yard) and the two kinds of evidence.
+ * The yard is one track read left to right on wide screens: feeds converge,
+ * a watch throws the points, stations stand on the line, and the gate forks
+ * the line into a route that continues and one that ends at a buffer stop.
+ */
+.head-split .lede {
+  padding-bottom: 4px;
+}
+
+/* 01 The problem */
+.chores {
+  margin-top: clamp(28px, 4vw, 40px);
+  border-bottom: 1px solid var(--rule);
+}
+.chores li {
+  display: grid;
+  gap: 6px 32px;
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--rule);
+}
+.chores p {
+  max-width: 34em;
+  color: var(--text-dim);
+}
+@media (min-width: 640px) {
+  .chores li {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: baseline;
+  }
+}
+
+/* 02 How it works */
+.yard {
+  display: grid;
+  gap: clamp(44px, 7vw, 64px);
+}
+.stage {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+.fig {
+  position: relative;
+  height: 150px;
+  max-width: 560px;
+}
+.fig::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 9px;
+  margin-top: -4.5px;
+}
+.fig-in::before {
+  left: 93%;
+}
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.lines path {
+  vector-effect: non-scaling-stroke;
+}
+.lines .lit {
+  stroke: var(--lamp-lunar);
+  stroke-width: 2.5;
+}
+.lines .halt {
+  stroke: var(--lamp-stop);
+  stroke-width: 5;
+}
+.fig-in .lines {
+  left: 56%;
+  width: 44%;
+}
+.fork {
+  left: 14%;
+  width: 86%;
+}
+.feeds {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  width: 56%;
+  font-size: 0.8125rem;
+  line-height: 1.15;
+  color: var(--text-dim);
+}
+.feeds li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  text-align: right;
+}
+.feeds li::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.feeds .lit {
+  color: var(--text);
+  font-weight: 600;
+}
+.feeds .lit::after {
+  background: var(--lamp-lunar);
+}
+
+/* Stations stand on the line; the label sits below, or above at the gate. */
+.st {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid var(--text-dim);
+  border-radius: 50%;
+  background: var(--bg);
+}
+.st::after {
+  content: attr(data-l);
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 0.6875rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+.st-watch {
+  left: 10%;
+  border-color: var(--lamp-lunar);
+}
+.st-agent {
+  left: 28%;
+}
+.st-cmd {
+  left: 70%;
+  border-radius: 3px;
+}
+.st-gate {
+  left: 14%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 1.5px solid var(--rule-strong);
+  background: var(--ink-0);
+}
+.st-gate::after {
+  top: auto;
+  bottom: calc(100% + 9px);
+}
+.st-gate .lamp {
+  width: 12px;
+  height: 12px;
+}
+
+.tag {
+  position: absolute;
+  z-index: 1;
+  padding: 3px 7px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--bg);
+  font: 0.6875rem/1.2 var(--font-mono);
+  white-space: nowrap;
+  color: var(--text-dim);
+  transform: translateY(-50%);
+}
+.tag-up,
+.tag-on,
+.tag-down {
+  left: 34%;
+}
+.tag-up {
+  top: 20%;
+}
+.tag-on {
+  top: 50%;
+  border: 1px solid var(--lamp-lunar);
+  border-left-width: 3px;
+  color: var(--text);
+  font-weight: 500;
+}
+.tag-down {
+  top: 80%;
+}
+.tag-yes,
+.tag-no {
+  transform: translate(-50%, -50%);
+}
+.tag-yes {
+  left: 82%;
+  top: 50%;
+}
+.tag-no {
+  left: 50%;
+  top: 82%;
+}
+
+.say h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.say h3 b {
+  min-width: 28px;
+  padding: 6px 5px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg);
+  font: 500 0.75rem/1 var(--font-mono);
+  text-align: center;
+}
+.say p {
+  max-width: 32em;
+  margin-top: 10px;
+  color: var(--text-dim);
+}
+@media (max-width: 1099px) {
+  .stage:nth-child(3) .fig {
+    height: 96px;
+  }
+}
+@media (min-width: 640px) and (max-width: 1099px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 36px;
+  }
+  .fig {
+    height: 160px;
+  }
+}
+@media (min-width: 1100px) {
+  .yard {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0;
+  }
+  .stage {
+    gap: 28px;
+  }
+  .fig {
+    height: 190px;
+    max-width: none;
+  }
+  .say {
+    padding-right: clamp(16px, 2.2vw, 30px);
+  }
+  .say p {
+    font-size: 0.9375rem;
+  }
+}
+
+/* 03 Evidence */
+.proof {
+  display: grid;
+  gap: 24px;
+}
+.proof article {
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: var(--radius-md);
+}
+.proof-ok {
+  border: 1px solid var(--rule-strong);
+  border-top: 3px solid var(--lamp-clear);
+  background: var(--ink-1);
+  box-shadow: var(--shadow-raised);
+}
+.proof-said {
+  border: 1.5px dashed var(--line);
+}
+.proof h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.proof h3 .ic {
+  width: 20px;
+  height: 20px;
+}
+.proof article > p {
+  margin-top: 8px;
+  color: var(--text-dim);
+}
+.proof ul {
+  margin-top: 20px;
+}
+.proof li {
+  display: grid;
+  gap: 4px 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.proof-said li {
+  border-top-style: dashed;
+}
+.proof li code {
+  color: var(--text);
+}
+.proof li span {
+  color: var(--text-dim);
+}
+.proof-note {
+  margin-top: 28px;
+}
+@media (min-width: 560px) {
+  .proof li {
+    grid-template-columns: 7.5em minmax(0, 1fr);
+    align-items: baseline;
+  }
+}
+@media (min-width: 860px) {
+  .proof {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 48px);
+    align-items: start;
+  }
+  .proof-said {
+    margin-top: 56px;
+  }
+}

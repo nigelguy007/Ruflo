@@ -1,0 +1,208 @@
+/*
+ * Settings: a lever frame. The global pause is the one big lever; the rest
+ * are small instruments, laid out as a board on wide screens.
+ */
+
+.page--settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: var(--space-6) clamp(24px, 3.5vw, 48px);
+}
+
+.page--settings > .page-head,
+.page--settings > .state,
+.page--settings > .setting--pause,
+.page--settings > .settings-foot { grid-column: 1 / -1; }
+.setting { display: grid; justify-items: start; gap: 10px; min-width: 0; }
+.setting .section-head { justify-self: stretch; margin-bottom: 4px; }
+
+.setting__value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.setting__explain { max-width: var(--measure); color: var(--text-dim); font-size: var(--text-sm); }
+
+/* ── The global pause ──────────────────────────────────────────────────────── */
+
+.pause {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  justify-self: stretch;
+  gap: 20px 40px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--ink-1);
+  overflow: hidden;
+}
+
+.pause[data-paused='true'] {
+  border-color: color-mix(in srgb, var(--caution) 50%, var(--rule));
+  background: color-mix(in srgb, var(--caution) 9%, var(--ink-1));
+}
+
+.pause[data-paused='true']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: var(--barrier);
+}
+.pause__state { display: grid; gap: 8px; min-width: 0; }
+
+.pause__headline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.375rem, 1.15rem + 0.8vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+.pause__headline .lamp { width: 12px; height: 12px; }
+.pause__explain { max-width: var(--measure); color: var(--text-dim); }
+
+/* The lever: a handle that travels along a slot from Running to Paused. */
+.lever {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  padding: 8px 16px;
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-sm);
+  background: var(--ink-0);
+  color: var(--text-quiet);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--fast) var(--ease);
+}
+.lever:hover:not(:disabled) { border-color: var(--text-dim); }
+.lever:focus-visible { outline-offset: 3px; }
+.lever:disabled { opacity: 0.6; cursor: progress; }
+.lever[aria-checked='false'] .lever__end[data-active='true'] { color: var(--lunar-ink); }
+.lever[aria-checked='true'] .lever__end[data-active='true'] { color: var(--caution-ink); }
+
+.lever__slot {
+  position: relative;
+  width: 86px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--ink-3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.lever__handle {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 22px;
+  height: 46px;
+  margin-top: -23px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--lunar-strong), var(--lunar));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ink-0) 40%, transparent),
+    0 3px 8px rgba(0, 0, 0, 0.35);
+  transition: transform var(--slow) var(--ease), background var(--slow) var(--ease);
+}
+
+.lever[aria-checked='true'] .lever__handle {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--caution) 70%, #fff), var(--caution));
+  transform: translateX(56px);
+}
+
+@media (max-width: 720px) {
+  .pause { grid-template-columns: minmax(0, 1fr); }
+  .lever { justify-self: start; }
+}
+
+/* ── Ledger ────────────────────────────────────────────────────────────────── */
+
+.ledger { display: grid; justify-items: start; gap: 12px; }
+
+.ledger__result {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: var(--measure);
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.ledger__result .lamp { position: relative; top: 1px; }
+.ledger__result[data-ok='true'] { border-left-color: var(--clear); background: var(--clear-wash); }
+.ledger__result[data-ok='false'] { border-left-color: var(--stop); background: var(--stop-wash); }
+
+/* ── Theme ─────────────────────────────────────────────────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  gap: 3px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-sm);
+  background: var(--ink-0);
+}
+
+.segmented__option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.segmented__option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.segmented__option:hover { color: var(--text); }
+
+.segmented__option:has(input:checked) {
+  background: var(--lunar-wash);
+  box-shadow: inset 0 0 0 1px var(--lunar);
+  color: var(--lunar-ink);
+}
+
+.segmented__option:has(input:focus-visible) {
+  outline: 2px solid var(--lunar);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  .segmented__option { min-height: 44px; }
+}
+
+.settings-foot {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  color: var(--text-quiet);
+  font-size: var(--text-xs);
+}

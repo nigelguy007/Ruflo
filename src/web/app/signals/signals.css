@@ -1,0 +1,95 @@
+/*
+ * Signals: what came in, read like an arrivals board, beside a form that
+ * sends a test signal exactly as a webhook would.
+ */
+
+.signals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-7);
+  min-width: 0;
+}
+.signals > * { min-width: 0; }
+
+@media (min-width: 1100px) {
+  .signals {
+    grid-template-columns: minmax(19rem, 23rem) minmax(0, 1fr);
+    align-items: start;
+    column-gap: clamp(32px, 3.5vw, 56px);
+  }
+  .signals__form { position: sticky; top: 72px; }
+}
+
+/* ── The test signal form ──────────────────────────────────────────────────── */
+
+.signal-form {
+  display: grid;
+  gap: 18px;
+  padding: clamp(18px, 2.4vw, 26px);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--lunar);
+  border-radius: var(--radius-sm);
+  background: var(--ink-1);
+}
+.signal-form__title { font-size: var(--text-xl); }
+.signal-form__lede { margin-top: -10px; color: var(--text-dim); font-size: var(--text-sm); }
+
+.signal-form__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+.signal-form .btn { width: 100%; }
+
+@media (max-width: 420px) {
+  .signal-form__pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Arrivals ──────────────────────────────────────────────────────────────── */
+
+.signal-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+
+.signal-row {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 22px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.signal-row__source { display: grid; gap: 2px; min-width: 0; }
+
+.signal-row__source-name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.signal-row__source .mono {
+  color: var(--text-quiet);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.signal-row__main { display: grid; gap: 5px; min-width: 0; }
+.signal-row__title { font-weight: 500; overflow-wrap: anywhere; }
+
+.signal-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  color: var(--text-quiet);
+  font-size: var(--text-sm);
+}
+.signal-row__run { font-size: var(--text-sm); white-space: nowrap; }
+.signal-row__run a { display: inline-flex; align-items: center; min-height: 32px; }
+.signal-row__norun { color: var(--text-quiet); }
+
+@media (max-width: 720px) {
+  .signal-row { grid-template-columns: minmax(0, 1fr); }
+  .signal-row__source { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .signal-row__run a { min-height: 44px; }
+}

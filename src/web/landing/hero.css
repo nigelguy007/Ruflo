@@ -1,0 +1,450 @@
+/*
+ * Hero: the headline, the pitch, and a run standing at its gate.
+ * The run panel is one track diagram. A rail runs down the left from the
+ * first step to the signal at the gate; on a wide panel the steps and the
+ * gate sit side by side and the rail drops to the signal below them.
+ */
+.hero {
+  --pad: clamp(56px, 6.5vw, 92px);
+  padding-top: clamp(36px, 5.5vw, 80px);
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--rule) 1px, transparent 1.5px) 0 0 / 22px 22px;
+  -webkit-mask-image: linear-gradient(#000, transparent 70%);
+  mask-image: linear-gradient(#000, transparent 70%);
+  pointer-events: none;
+}
+
+.eyebrow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 500 0.75rem/1.3 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.eyebrow .lamp {
+  width: 11px;
+  height: 11px;
+}
+.hero h1 {
+  margin-top: clamp(18px, 2.6vw, 30px);
+}
+.hero h1 span {
+  display: block;
+}
+.hero h1 span:first-child {
+  color: var(--text-dim);
+}
+@media (min-width: 960px) {
+  /* The main line starts at the signal beside the eyebrow. */
+  .hero .wrap::before {
+    top: 8px;
+  }
+  .eyebrow .lamp {
+    position: absolute;
+    left: calc(-1 * var(--inset) - 1px);
+  }
+  .eyebrow::before {
+    content: '';
+    position: absolute;
+    left: calc(16px - var(--inset));
+    width: calc(var(--inset) - 28px);
+    height: 2px;
+    background: var(--rail);
+  }
+}
+
+.hero-row {
+  display: grid;
+  gap: clamp(36px, 5vw, 60px);
+  margin-top: clamp(28px, 4.5vw, 56px);
+}
+.pitch {
+  max-width: 36rem;
+}
+.hero .lede {
+  max-width: none;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+}
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.pitch .fine {
+  margin-top: 22px;
+}
+@media (min-width: 1100px) {
+  .hero-row {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    align-items: start;
+  }
+  .pitch {
+    padding-top: 6px;
+  }
+}
+
+/* The run panel */
+.run {
+  container: run / inline-size;
+  max-width: 860px;
+}
+.run-body {
+  --rp: 16px;
+  --node: 18px;
+  --step: 40px;
+  --gap: 12px;
+  --state: var(--caution);
+  --state-wash: var(--caution-wash);
+  display: grid;
+  grid-template-areas: 'track' 'top' 'act';
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  background: var(--ink-2);
+  box-shadow: var(--shadow-raised);
+}
+.run[data-run='approved'] .run-body {
+  --state: var(--clear);
+  --state-wash: var(--clear-wash);
+}
+.run[data-run='rejected'] .run-body {
+  --state: var(--stop);
+  --state-wash: var(--stop-wash);
+}
+.gate {
+  display: contents;
+}
+
+.run-track {
+  grid-area: track;
+  display: flex;
+  flex-direction: column;
+  padding: 16px var(--rp);
+}
+.run-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+}
+.run-line code {
+  color: var(--text);
+}
+.run-line > span:last-child {
+  margin-left: auto;
+}
+.run-steps {
+  position: relative;
+  flex: 1;
+  margin-top: 10px;
+}
+.run-steps li {
+  display: grid;
+  grid-template-columns: var(--node) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--gap);
+  height: var(--step);
+  font-size: 0.875rem;
+}
+.run-steps code {
+  color: var(--text);
+}
+.run-steps li > span:last-child {
+  color: var(--text-dim);
+}
+.node {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--ink-2);
+}
+.by-engine .node {
+  border-radius: 3px;
+}
+.node .lamp {
+  width: 8px;
+  height: 8px;
+}
+.run-steps::before,
+.run-steps::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--step) / 2);
+}
+.run-steps::before {
+  left: calc(var(--node) / 2 - 4.5px);
+  bottom: -16px;
+  width: 9px;
+}
+/* The stretch of rail the run has already covered. */
+.run-steps::after {
+  left: calc(var(--node) / 2 - 1px);
+  width: 2px;
+  height: calc(var(--step) * 3);
+  background: var(--lamp-clear);
+  transform-origin: top;
+}
+
+.gate-top {
+  grid-area: top;
+  position: relative;
+  padding: 4px var(--rp) 18px calc(var(--rp) + var(--node) + var(--gap));
+}
+.gate-top::before,
+.gate-act::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--rp) + var(--node) / 2 - 4.5px);
+  top: 0;
+  width: 9px;
+}
+.gate-top::before {
+  bottom: 0;
+}
+.gate-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 0 12px;
+  border-block: 1px solid var(--rule);
+}
+.gate-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--state);
+  border-radius: 3px;
+  background: var(--state-wash);
+  color: var(--state);
+  font: 500 0.75rem/1.2 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.gate-q {
+  margin-top: 14px;
+  font: 600 clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem) / 1.15 var(--font-display);
+  text-wrap: balance;
+}
+.ev {
+  margin-top: 16px;
+  padding-left: 14px;
+  border-left: 2px solid var(--lamp-clear);
+}
+.ev .label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+.ev ul {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.ev li {
+  position: relative;
+  padding-left: 16px;
+}
+.ev li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  background: var(--lamp-clear);
+}
+.ev code {
+  color: var(--text);
+}
+.ev-said {
+  border-left: 2px dashed var(--line);
+}
+.ev-said li::before {
+  border: 1.5px solid var(--text-dim);
+  background: none;
+}
+
+.gate-act {
+  grid-area: act;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--node) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 14px var(--rp) 16px;
+  border-top: 1px solid var(--rule);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--ink-1);
+}
+.gate-act::before {
+  height: 34px;
+}
+.seat {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-inline: -4px;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--ink-0);
+}
+.sig {
+  width: 12px;
+  height: 12px;
+}
+.gate-act .btn {
+  gap: 8px;
+  padding: 0 10px;
+  letter-spacing: 0.05em;
+}
+.gate-act .btn[aria-pressed='true'] {
+  border-color: var(--state);
+  background: var(--state-wash);
+  box-shadow: inset 0 0 0 1px var(--state);
+}
+.gate-says {
+  grid-column: 2 / -1;
+  min-height: calc(3 * 1.45em);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.run figcaption {
+  max-width: 60ch;
+  margin-top: 12px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+@container run (min-width: 640px) {
+  .run-body {
+    --rp: 22px;
+    grid-template-columns: minmax(200px, 5fr) minmax(0, 7fr);
+    grid-template-areas: 'track top' 'act act';
+  }
+  .run-track {
+    padding-block: 18px;
+  }
+  .run-steps::before {
+    bottom: -18px;
+  }
+  .gate-top {
+    padding: 8px var(--rp) 20px;
+    border-left: 1px solid var(--rule);
+  }
+  .gate-top::before {
+    content: none;
+  }
+  .gate-head {
+    border-top: 0;
+  }
+  .gate-act {
+    grid-template-columns: var(--node) auto auto minmax(0, 1fr);
+    column-gap: var(--gap);
+  }
+  .gate-act .btn {
+    padding: 0 14px;
+  }
+  .gate-says {
+    grid-column: 4;
+    grid-row: 1;
+    min-height: calc(2 * 1.45em);
+  }
+}
+
+/* The run arrives at the gate: steps light in turn, then the signal turns amber. */
+@media (prefers-reduced-motion: no-preference) {
+  .run-steps .lamp {
+    animation: lamp-on 260ms var(--ease) both;
+  }
+  .run-steps li:nth-child(1) .lamp {
+    animation-delay: 150ms;
+  }
+  .run-steps li:nth-child(2) .lamp {
+    animation-delay: 450ms;
+  }
+  .run-steps li:nth-child(3) .lamp {
+    animation-delay: 750ms;
+  }
+  .run-steps li:nth-child(4) .lamp {
+    animation-delay: 1050ms;
+  }
+  .run-steps::after {
+    animation: rail-fill 900ms linear 150ms both;
+  }
+  /* Only until someone presses a button; a press always shows its state at once. */
+  .run[data-run=''] .sig {
+    animation: lamp-on 320ms var(--ease) 1400ms both;
+  }
+  .run[data-run=''] .gate-state {
+    animation: fade-in 320ms var(--ease) 1450ms both;
+  }
+  .run[data-run='approved'] .sig {
+    animation: relight-a 360ms var(--ease) both;
+  }
+  .run[data-run='rejected'] .sig {
+    animation: relight-b 360ms var(--ease) both;
+  }
+  .run[data-run='waiting'] .sig {
+    animation: relight-c 360ms var(--ease) both;
+  }
+}
+@keyframes lamp-on {
+  from {
+    opacity: 0.12;
+    transform: scale(0.55);
+  }
+}
+@keyframes relight-a {
+  from {
+    opacity: 0.12;
+    transform: scale(0.55);
+  }
+}
+@keyframes relight-b {
+  from {
+    opacity: 0.12;
+    transform: scale(0.55);
+  }
+}
+@keyframes relight-c {
+  from {
+    opacity: 0.12;
+    transform: scale(0.55);
+  }
+}
+@keyframes rail-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
