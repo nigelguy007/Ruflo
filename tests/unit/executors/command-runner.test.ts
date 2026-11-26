@@ -106,6 +106,7 @@ describe('live command runner', () => {
       output: 'refused: "sh" is not in SWITCHYARD_ALLOWED_COMMANDS (git, npm, pnpm, node, gh). Nothing was executed.',
       dryRun: false,
       timedOut: false,
+      executed: false,
     });
     expect(existsSync(join(temp.dir, 'marker'))).toBe(false);
     expect(entries).toEqual([
@@ -118,6 +119,7 @@ describe('live command runner', () => {
     for (const binary of [process.execPath, './node', 'bin\\node']) {
       const result = await runner.run([binary, ...touch('marker')], options());
       expect(result.exitCode, binary).toBe(126);
+      expect(result.executed, binary).toBe(false);
       expect(result.output, binary).toContain('contains a path separator');
     }
     expect(existsSync(join(temp.dir, 'marker'))).toBe(false);
@@ -125,9 +127,11 @@ describe('live command runner', () => {
 
   test('refuses an empty command, a NUL byte and a missing working directory', async () => {
     const { runner } = live();
-    expect((await runner.run([], options())).exitCode).toBe(126);
-    expect((await runner.run(['node', '-e', '1\0'], options())).exitCode).toBe(126);
+    const empty = await runner.run([], options());
+    const nul = await runner.run(['node', '-e', '1\0'], options());
     const noCwd = await runner.run(['node', ...touch('marker')], options({ cwd: null }));
+    expect([empty.exitCode, nul.exitCode, noCwd.exitCode]).toEqual([126, 126, 126]);
+    expect([empty.executed, nul.executed, noCwd.executed]).toEqual([false, false, false]);
     expect(noCwd.output).toBe('refused: no working directory was given. Nothing was executed.');
   });
 
@@ -206,7 +210,34 @@ describe('live command runner', () => {
     const { runner } = live({ SWITCHYARD_ALLOWED_COMMANDS: 'switchyard-no-such-binary' });
     const result = await runner.run(['switchyard-no-such-binary'], options());
     expect(result.exitCode).toBe(127);
+    expect(result.executed).toBe(false);
     expect(result.output).toMatch(/^could not start "switchyard-no-such-binary": .*ENOENT/);
+  });
+
+  test('a working directory that does not exist is reported as not run, with the made-up 127', async () => {
+    const result = await live().runner.run(['node', ...touch('marker')], options({ cwd: join(temp.dir, 'gone') }));
+
+    expect(result.exitCode).toBe(127);
+    expect(result.executed).toBe(false);
+    expect(result.dryRun).toBe(false);
+    expect(result.output).toMatch(/^could not start "node": /);
+  });
+
+  test('a command that ran is never marked as not executed, whatever it returned', async () => {
+    const { runner } = live();
+    const failed = await runner.run(['node', '-e', 'process.exit(3)'], options());
+    const killed = await runner.run(['node', '-e', 'process.kill(process.pid, "SIGTERM"); setInterval(() => {}, 1000)'], options());
+    const timedOut = await runner.run(['node', '-e', 'setInterval(() => {}, 1000)'], options({ timeoutMs: 200 }));
+
+    expect([failed.exitCode, killed.exitCode, timedOut.exitCode]).toEqual([3, 143, 124]);
+    for (const result of [failed, killed, timedOut]) expect(result.executed).not.toBe(false);
+  });
+
+  test('a dry run is not a refusal: nothing ran, but it says so with dryRun and not executed', async () => {
+    const result = await createDryRunCommandRunner(makeConfig()).run(['rm', '-rf', '/'], options());
+
+    expect(result.dryRun).toBe(true);
+    expect(result.executed).toBeUndefined();
   });
 
   test('a timeout that is not a positive number falls back to the default', async () => {

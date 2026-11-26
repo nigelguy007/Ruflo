@@ -4,6 +4,7 @@ import { createStatementCache } from './database.js';
 import type { Prepare } from './database.js';
 import { integer, json, jsonOrNull, oneOf, recordSchema, stringListSchema, text } from './rows.js';
 import type { Row } from './rows.js';
+import { isStorableText } from './text.js';
 
 const KINDS: readonly TimelineKind[] = [
   'signal',
@@ -60,7 +61,15 @@ export class TimelineRepository {
     return row ? { seq: integer(row, 'seq'), hash: text(row, 'hash') } : null;
   }
 
+  /**
+   * The hash covers the exact strings passed in, so they must be ones SQLite
+   * keeps as given. The ledger makes them so; this refuses anything else rather
+   * than store a row that `verify()` would later call tampered.
+   */
   insert(event: TimelineEvent): TimelineEvent {
+    if (![event.runId, event.actor, event.text].every(isStorableText)) {
+      throw new Error('Ledger text must be storable as given before it is hashed.');
+    }
     this.prepare(
       `INSERT INTO timeline (seq, id, run_id, at, actor, kind, text, mentions, data, prev_hash, hash)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

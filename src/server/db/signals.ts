@@ -2,11 +2,13 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { Id, IsoTime, Severity, Signal, SignalSource } from '../../shared/types.js';
 import { json, oneOf, recordSchema, text, textOrNull } from './rows.js';
 import type { Row } from './rows.js';
+import { storableText, storableTextOrNull } from './text.js';
 
 const SOURCES: readonly SignalSource[] = ['sentry', 'github', 'schedule', 'manual'];
 const SEVERITIES: readonly Severity[] = ['info', 'warning', 'error', 'critical'];
 
 export interface SignalRepository {
+  /** Returns the signal as stored: free text with anything SQLite cannot keep replaced by U+FFFD. */
   insert(signal: Signal): Signal;
   get(id: Id): Signal | null;
   /** Newest first. */
@@ -40,7 +42,15 @@ export function createSignalRepository(db: DatabaseSync): SignalRepository {
   const last = db.prepare('SELECT received_at FROM signals ORDER BY seq DESC LIMIT 1');
 
   return {
-    insert(signal) {
+    insert(input) {
+      // Hand back what the database holds, so callers never work from text it would have changed.
+      const signal: Signal = {
+        ...input,
+        kind: storableText(input.kind),
+        title: storableText(input.title),
+        fingerprint: storableText(input.fingerprint),
+        url: storableTextOrNull(input.url),
+      };
       insert.run(
         signal.id,
         signal.source,

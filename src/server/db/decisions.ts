@@ -6,6 +6,7 @@ import type { Prepare } from './database.js';
 import { evidenceSchema } from './evidence.js';
 import { integer, json, oneOf, text, textOrNull } from './rows.js';
 import type { Row } from './rows.js';
+import { storableText, storableTextOrNull } from './text.js';
 
 export const DECISION_STATUSES: readonly DecisionStatus[] = ['open', 'approved', 'rejected'];
 const evidenceListSchema = z.array(evidenceSchema);
@@ -45,7 +46,15 @@ export class DecisionRepository {
     this.prepare = createStatementCache(db);
   }
 
-  insert(decision: Decision): Decision {
+  /** Returns the decision as stored: free text with anything SQLite cannot keep replaced by U+FFFD. */
+  insert(input: Decision): Decision {
+    const decision: Decision = {
+      ...input,
+      runTitle: storableText(input.runTitle),
+      question: storableText(input.question),
+      decidedBy: storableTextOrNull(input.decidedBy),
+      note: storableTextOrNull(input.note),
+    };
     this.prepare(
       `INSERT INTO decisions (id, run_id, run_title, step_id, question, status, opened_at,
                               decided_at, decided_by, note, evidence)
@@ -113,7 +122,13 @@ export class DecisionRepository {
     const result = this.prepare(
       `UPDATE decisions SET status = ?, decided_at = ?, decided_by = ?, note = ?
        WHERE id = ? AND status = 'open'`,
-    ).run(resolution.status, resolution.decidedAt, resolution.decidedBy, resolution.note, id);
+    ).run(
+      resolution.status,
+      resolution.decidedAt,
+      storableText(resolution.decidedBy),
+      storableTextOrNull(resolution.note),
+      id,
+    );
     return Number(result.changes) === 1 ? this.get(id) : null;
   }
 

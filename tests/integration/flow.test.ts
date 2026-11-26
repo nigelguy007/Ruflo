@@ -37,8 +37,10 @@ describe('a manual error from signal to shipped fix', () => {
     expect(open.envelope.meta).toEqual({ total: 1, limit: 50 });
     const decision = open.envelope.data?.[0];
     expect(decision?.question).toBe('Merge this fix and deploy it to production?');
+    // Every shipped operator is on the scripted harness, so in live mode too its claim is
+    // labelled simulated: only the engine's own `npm test` is verified.
     expect(decision?.evidence.map((e) => [e.kind, e.label, e.ok])).toEqual([
-      ['claimed', 'Regression test added', true],
+      ['simulated', 'Regression test added', true],
       ['verified', 'Run the test suite', true],
     ]);
 
@@ -61,6 +63,21 @@ describe('a manual error from signal to shipped fix', () => {
     const overview = await data<Overview>(app, '/api/overview');
     expect(overview).toMatchObject({ openDecisions: 0, activeRuns: 0, failedRuns: 0 });
     expect(overview.digest).toMatchObject({ succeeded: 1, decisionsMade: 1, handledWithoutYou: 0 });
+  });
+
+  test('keeps the ledger verifiable when a title SQLite cannot store as given comes in over the API', async () => {
+    const { app, container } = await boot();
+
+    for (const title of ['Checkout fails \ud83d', 'Cart total is\0NaN']) {
+      await data(app, '/api/signals/manual', { body: { title, kind: 'manual.error' } });
+    }
+    await container.engine.whenIdle();
+
+    const total = container.store.timeline.count();
+    expect(await data<LedgerCheck>(app, '/api/ledger/verify')).toEqual({ ok: true, checked: total, brokenAt: null });
+    container.store.db.prepare('UPDATE timeline SET text = ? WHERE seq = ?').run('rewritten', total);
+    expect(await data<LedgerCheck>(app, '/api/ledger/verify')).toEqual({ ok: false, checked: total - 1, brokenAt: total });
+    expect(container.store.runs.require('run_1').title).toBe('Checkout fails \ufffd');
   });
 
   test('refuses to decide the same question twice', async () => {

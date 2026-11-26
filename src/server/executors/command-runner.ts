@@ -49,6 +49,7 @@ function refused(reason: string): CommandResult {
     output: `refused: ${reason}. Nothing was executed.`,
     dryRun: false,
     timedOut: false,
+    executed: false,
   };
 }
 
@@ -73,6 +74,7 @@ function toResult(outcome: ProcessOutcome, binary: string, timeoutMs: number): C
       output: `could not start "${binary}": ${outcome.spawnError}`,
       dryRun: false,
       timedOut: false,
+      executed: false,
     };
   }
   if (outcome.timedOut) {

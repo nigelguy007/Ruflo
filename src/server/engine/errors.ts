@@ -38,3 +38,11 @@ export class StepTimeoutError extends Error {
     super(`timed out after ${seconds} seconds`);
   }
 }
+
+/**
+ * The reason an in-flight step is aborted when the run's time budget runs out
+ * under it. The message is the stop reason, written for a person.
+ */
+export class BudgetExhaustedError extends Error {
+  override readonly name = 'TimeoutError';
+}

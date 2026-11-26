@@ -3,8 +3,10 @@ import type { AgentStep, EvidenceKind, Run, Signal } from '../../../shared/types
 import { errorMessage } from '../../logger.js';
 import type { Executor, MemoryHit, StepContext, StepResult } from '../../ports.js';
 import type { EngineContext } from '../context.js';
+import { BudgetExhaustedError } from '../errors.js';
 import { recallFor } from '../memory.js';
 import { failRun, saveStep } from '../run-state.js';
+import { clipText } from '../text.js';
 import { iso } from '../time.js';
 import { stepResultSchema } from './result.js';
 import {
@@ -15,20 +17,33 @@ import {
   stillCurrent,
   withDeadline,
 } from './shared.js';
-import type { StepFrame, StepOutcome } from './shared.js';
+import type { StepBudget, StepFrame, StepOutcome } from './shared.js';
 
 const MAX_REASON_LENGTH = 500;
 
-type Attempt = { ok: true; result: StepResult } | { ok: false; reason: string };
+/** `budgetRanOut`: the run's minutes ended the step, so there is nothing to retry. */
+type Attempt =
+  | { ok: true; result: StepResult }
+  | { ok: false; reason: string; budgetRanOut: boolean };
 
 /** In simulate mode every operator is scripted, whatever harness it is configured for. */
 function pickExecutor(ctx: EngineContext, operator: OperatorConfig): Executor {
   return ctx.config.mode === 'simulate' ? ctx.executors.simulated : ctx.executors[operator.harness];
 }
 
+/**
+ * What a session's claims are recorded as. Scripted output is `simulated` even
+ * in live mode: an operator on the `simulated` harness still gets the scripted
+ * executor there, and what it says was never an agent's report.
+ */
+function evidenceKind(ctx: EngineContext, executor: Executor): EvidenceKind {
+  const scripted = executor.synthetic ?? executor.harness === 'simulated';
+  return ctx.config.mode === 'simulate' || scripted ? 'simulated' : 'claimed';
+}
+
 function plain(reason: string): string {
   const trimmed = reason.trim().replace(/[.\s]+$/, '');
-  return (trimmed.length > 0 ? trimmed : 'no reason was given').slice(0, MAX_REASON_LENGTH);
+  return clipText(trimmed.length > 0 ? trimmed : 'no reason was given', MAX_REASON_LENGTH);
 }
 
 function buildStepContext(
@@ -60,16 +75,20 @@ async function attemptStep(
   executor: Executor,
   stepContext: StepContext,
   abort: AbortController,
+  budget: StepBudget,
 ): Promise<Attempt> {
   const seconds = stepContext.step.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
   try {
-    const raw = await withDeadline(ctx, abort, seconds, () => executor.run(stepContext, abort.signal));
+    const raw = await withDeadline(ctx, abort, seconds, () => executor.run(stepContext, abort.signal), budget);
     const parsed = stepResultSchema.safeParse(raw);
-    if (!parsed.success) return { ok: false, reason: 'the session returned a result the engine could not read' };
-    if (!parsed.data.ok) return { ok: false, reason: plain(parsed.data.summary) };
+    if (!parsed.success) {
+      return { ok: false, reason: 'the session returned a result the engine could not read', budgetRanOut: false };
+    }
+    if (!parsed.data.ok) return { ok: false, reason: plain(parsed.data.summary), budgetRanOut: false };
     return { ok: true, result: parsed.data };
   } catch (error) {
-    return { ok: false, reason: plain(errorMessage(error)) };
+    if (error instanceof BudgetExhaustedError) return { ok: false, reason: error.message, budgetRanOut: true };
+    return { ok: false, reason: plain(errorMessage(error)), budgetRanOut: false };
   }
 }
 
@@ -87,15 +106,15 @@ function recordHandoff(ctx: EngineContext, run: Run, step: AgentStep, operator: 
   ctx.store.runs.update(run.id, { addHandoffs: 1 });
 }
 
-/** Stores everything a finished session produced. Agent claims are never recorded as verified. */
+/** Stores everything a finished session produced. Claims are never recorded as verified. */
 function recordSuccess(
   ctx: EngineContext,
   frame: StepFrame<AgentStep>,
   operator: OperatorConfig,
   result: StepResult,
+  kind: EvidenceKind,
 ): StepOutcome {
   const { run, step } = frame;
-  const kind: EvidenceKind = ctx.config.mode === 'simulate' ? 'simulated' : 'claimed';
   const summary = result.summary.trim() || `${operator.name} finished "${step.title}".`;
   ctx.store.transaction(() => {
     ctx.ledger.append({
@@ -145,9 +164,11 @@ function recordFailure(
     saveStep(ctx, run.id, step.id, { status: 'pending', finishedAt });
     return 'next';
   }
-  saveStep(ctx, run.id, step.id, { status: 'failed', finishedAt, summary: reason });
   const attempts = attempt === 1 ? '1 attempt' : `${attempt} attempts`;
-  failRun(ctx, run.id, `${operator.name} could not finish "${step.title}" after ${attempts}: ${reason}.`);
+  failRun(ctx, run.id, `${operator.name} could not finish "${step.title}" after ${attempts}: ${reason}.`, {
+    stepId: step.id,
+    summary: reason,
+  });
   return 'halt';
 }
 
@@ -164,7 +185,7 @@ export async function runAgentStep(
     failRun(ctx, frame.run.id, `Stopped before "${step.title}": ${missing} no longer exists.`);
     return 'halt';
   }
-  const { run, attempt, abort } = beginStep(ctx, frame);
+  const { run, attempt, abort, budget } = beginStep(ctx, frame);
   try {
     ctx.ledger.append({
       runId: run.id,
@@ -177,11 +198,17 @@ export async function runAgentStep(
     const recalled = await recallFor(ctx, operator.id, signal);
     if (!stillCurrent(ctx, run.id, step.id)) return 'halt';
     const stepContext = buildStepContext(ctx, run, step, operator, signal, recalled);
-    const outcome = await attemptStep(ctx, pickExecutor(ctx, operator), stepContext, abort);
+    const executor = pickExecutor(ctx, operator);
+    const outcome = await attemptStep(ctx, executor, stepContext, abort, budget);
     if (!stillCurrent(ctx, run.id, step.id)) return 'halt';
-    return outcome.ok
-      ? recordSuccess(ctx, { ...frame, run }, operator, outcome.result)
-      : recordFailure(ctx, { ...frame, run }, operator, attempt, outcome.reason);
+    if (outcome.ok) {
+      return recordSuccess(ctx, { ...frame, run }, operator, outcome.result, evidenceKind(ctx, executor));
+    }
+    if (outcome.budgetRanOut) {
+      failRun(ctx, run.id, outcome.reason, { stepId: step.id, summary: outcome.reason });
+      return 'halt';
+    }
+    return recordFailure(ctx, { ...frame, run }, operator, attempt, outcome.reason);
   } finally {
     releaseStep(ctx, run.id, abort);
   }

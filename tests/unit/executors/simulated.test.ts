@@ -200,6 +200,12 @@ describe('createSimulatedExecutor', () => {
     expect(createSimulatedExecutor(0, 'claude').harness).toBe('claude');
   });
 
+  test('says it is synthetic, whichever harness it stands in for, so its output is never recorded as claimed', () => {
+    expect(createSimulatedExecutor(0).synthetic).toBe(true);
+    expect(createSimulatedExecutor(0, 'claude').synthetic).toBe(true);
+    expect(createSimulatedExecutor(0, 'codex').synthetic).toBe(true);
+  });
+
   test('waits for the step delay before resolving', async () => {
     // Arrange
     vi.useFakeTimers();

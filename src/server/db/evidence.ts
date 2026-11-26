@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Evidence, EvidenceKind, Id } from '../../shared/types.js';
 import { boolOrNull, oneOf, text, toFlag } from './rows.js';
 import type { Row } from './rows.js';
+import { storableText } from './text.js';
 
 const KINDS: readonly EvidenceKind[] = ['verified', 'claimed', 'simulated'];
 
@@ -18,6 +19,7 @@ export const evidenceSchema: z.ZodType<Evidence> = z.object({
 });
 
 export interface EvidenceRepository {
+  /** Returns the evidence as stored: free text with anything SQLite cannot keep replaced by U+FFFD. */
   insert(evidence: Evidence): Evidence;
   /** In the order it was gathered. */
   forRun(runId: Id): Evidence[];
@@ -42,7 +44,12 @@ export function createEvidenceRepository(db: DatabaseSync): EvidenceRepository {
   const byRun = db.prepare('SELECT * FROM evidence WHERE run_id = ? ORDER BY seq');
 
   return {
-    insert(evidence) {
+    insert(input) {
+      const evidence: Evidence = {
+        ...input,
+        label: storableText(input.label),
+        detail: storableText(input.detail),
+      };
       insert.run(
         evidence.id,
         evidence.runId,

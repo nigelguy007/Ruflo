@@ -11,6 +11,17 @@ export function activeMs(run: Run, meta: RunMeta, now: Date): number {
   return Math.max(0, now.getTime() - Date.parse(run.startedAt) - meta.gateWaitMs);
 }
 
+/** How long the run may keep working before its minutes are used up. Zero once they are. */
+export function remainingMs(budget: Budget, run: Run, meta: RunMeta, now: Date): number {
+  return Math.max(0, budget.maxMinutes * MINUTE_MS - activeMs(run, meta, now));
+}
+
+/** The stop reason when the minutes run out while `step` is still working. */
+export function budgetRanOutDuring(budget: Budget, step: Step): string {
+  const minutes = `${budget.maxMinutes} ${budget.maxMinutes === 1 ? 'minute' : 'minutes'}`;
+  return `Stopped during "${step.title}": this run used up the ${minutes} its playbook allows while the step was still working. Time spent waiting for a decision is not counted.`;
+}
+
 /**
  * Checked before every step. Returns the reason the run must stop, in plain
  * words, or null when `next` may start. The counts are checked ahead of time:

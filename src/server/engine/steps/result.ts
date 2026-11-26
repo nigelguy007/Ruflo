@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import type { StepResult } from '../../ports.js';
+import { clipText } from '../text.js';
 
 const LABEL_LENGTH = 200;
 const TEXT_LENGTH = 4_000;
 const MAX_ITEMS = 50;
 
-const clipped = (max: number): z.ZodType<string> => z.string().transform((value) => value.slice(0, max));
+/** Clipped by character, never through the middle of an emoji, and made safe to store. */
+const clipped = (max: number): z.ZodType<string> => z.string().transform((value) => clipText(value, max));
 
 /**
  * What an executor hands back is ultimately model output, so it is checked and

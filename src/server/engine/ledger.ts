@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { Id, LedgerCheck, TimelineEvent, TimelineKind } from '../../shared/types.js';
 import type { Store } from '../db/index.js';
+import { storableText } from '../db/text.js';
 import type { EventBus } from './bus.js';
+import { clipText } from './text.js';
 import { iso } from './time.js';
 import type { Clock, IdGenerator } from './time.js';
 
@@ -78,11 +80,13 @@ export function createLedger(
       const body: LedgerBody = {
         seq: (tip?.seq ?? 0) + 1,
         id: newId('evt'),
-        runId: input.runId,
+        runId: storableText(input.runId),
         at: iso(clock()),
-        actor: input.actor,
+        actor: storableText(input.actor),
         kind: input.kind,
-        text: input.text.slice(0, MAX_TEXT_LENGTH),
+        // Hashed and stored from the same normalised value: SQLite would otherwise change
+        // a lone surrogate or cut at a NUL, and verify() would call that tampering.
+        text: clipText(input.text, MAX_TEXT_LENGTH),
         mentions: [...(input.mentions ?? [])],
         data: storable(input.data),
       };

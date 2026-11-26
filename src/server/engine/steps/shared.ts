@@ -1,6 +1,8 @@
 import type { Id, Playbook, Run, Step } from '../../../shared/types.js';
+import { budgetRanOutDuring, remainingMs } from '../budget.js';
 import type { EngineContext } from '../context.js';
-import { StepTimeoutError } from '../errors.js';
+import { BudgetExhaustedError, StepTimeoutError } from '../errors.js';
+import { clipTail } from '../text.js';
 import { iso } from '../time.js';
 
 /** Used when a step does not set `timeoutSeconds`. */
@@ -17,11 +19,19 @@ export interface StepFrame<S extends Step = Step> {
 /** `next`: go on to the following step. `halt`: the run is parked at a gate, has ended, or was cancelled. */
 export type StepOutcome = 'next' | 'halt';
 
+/** What is left of the run's minutes when a step starts, and what to say if they run out under it. */
+export interface StepBudget {
+  remainingMs: number;
+  reason: string;
+}
+
 export interface StartedStep {
   run: Run;
   attempt: number;
   /** Fires when the run is cancelled or the step runs out of time. */
   abort: AbortController;
+  /** Lets `withDeadline` stop the step when the run's minutes run out, not only when the step's own timeout does. */
+  budget: StepBudget;
 }
 
 /** Marks the step and its run as running and registers the abort handle that `cancel` uses. */
@@ -47,7 +57,17 @@ export function beginStep(ctx: EngineContext, frame: StepFrame): StartedStep {
   ctx.bus.publish({ type: 'run.updated', run });
   const abort = new AbortController();
   ctx.inflight.set(run.id, abort);
-  return { run, attempt, abort };
+  return { run, attempt, abort, budget: budgetFor(ctx, frame, run) };
+}
+
+function budgetFor(ctx: EngineContext, frame: StepFrame, run: Run): StepBudget {
+  const { budget } = frame.playbook;
+  const meta = ctx.store.runs.meta(run.id);
+  return {
+    // Without bookkeeping there is nothing to measure against; the step's own timeout still applies.
+    remainingMs: meta === null ? Number.POSITIVE_INFINITY : remainingMs(budget, run, meta, ctx.clock()),
+    reason: budgetRanOutDuring(budget, frame.step),
+  };
 }
 
 /** Removes the abort handle, unless a newer step of the same run has already replaced it. */
@@ -75,19 +95,25 @@ export async function pace(ctx: EngineContext, abort: AbortController): Promise<
 }
 
 /**
- * Runs `work` until it settles, the step times out or `abort` fires, whichever
- * comes first. The race means work that ignores the abort signal still cannot
- * hold the run hostage.
+ * Runs `work` until it settles, the step times out, the run's minutes run out
+ * (when `budget` is given) or `abort` fires, whichever comes first. The race
+ * means work that ignores the abort signal still cannot hold the run hostage.
+ * When the run's minutes are what ends the step, it fails with the budget
+ * message instead of a generic timeout.
  */
 export async function withDeadline<T>(
   ctx: EngineContext,
   abort: AbortController,
   seconds: number,
   work: () => Promise<T>,
+  budget?: StepBudget,
 ): Promise<T> {
   const timer = new AbortController();
-  void ctx.sleep(seconds * SECOND_MS, timer.signal).then(() => {
-    if (!timer.signal.aborted) abort.abort(new StepTimeoutError(seconds));
+  const budgetFirst = budget !== undefined && budget.remainingMs < seconds * SECOND_MS;
+  const limitMs = budgetFirst ? budget.remainingMs : seconds * SECOND_MS;
+  void ctx.sleep(limitMs, timer.signal).then(() => {
+    if (timer.signal.aborted) return;
+    abort.abort(budgetFirst ? new BudgetExhaustedError(budget.reason) : new StepTimeoutError(seconds));
   });
   const aborted = new Promise<never>((_, reject) => {
     const fail = (): void => reject(abort.signal.reason);
@@ -101,6 +127,7 @@ export async function withDeadline<T>(
   }
 }
 
+/** The end of `text`, at most `maxLength` characters, with a "…" in front when the start was cut off. */
 export function tail(text: string, maxLength: number): string {
-  return text.length <= maxLength ? text : `…${text.slice(text.length - maxLength + 1)}`;
+  return clipTail(text, maxLength);
 }

@@ -2,7 +2,7 @@ import type { Id, Run } from '../../shared/types.js';
 import { errorMessage } from '../logger.js';
 import { budgetBreach } from './budget.js';
 import type { EngineContext } from './context.js';
-import { endRun, failRun, saveRun, systemNote } from './run-state.js';
+import { endRun, failRun, saveRun, strandedFailure, strandedStopReason, systemNote } from './run-state.js';
 import { runAgentStep } from './steps/agent.js';
 import { runCommandStep } from './steps/command.js';
 import { runGateStep } from './steps/gate.js';
@@ -27,6 +27,11 @@ function park(ctx: EngineContext, run: Run): void {
 function nextFrame(ctx: EngineContext, runId: Id): StepFrame | null {
   const run = ctx.store.runs.get(runId);
   if (!run || (run.status !== 'queued' && run.status !== 'running')) return null;
+  const stranded = strandedFailure(run);
+  if (stranded !== null) {
+    failRun(ctx, runId, strandedStopReason(stranded));
+    return null;
+  }
   if (ctx.store.settings.paused()) {
     park(ctx, run);
     return null;

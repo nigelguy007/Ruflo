@@ -15,6 +15,7 @@ import { createStatementCache } from './database.js';
 import type { Prepare } from './database.js';
 import { integer, json, oneOf, placeholders, text, textOrNull } from './rows.js';
 import type { Row } from './rows.js';
+import { storableText, storableTextOrNull } from './text.js';
 
 export const RUN_STATUSES: readonly RunStatus[] = [
   'queued',
@@ -132,7 +133,7 @@ function runAssignments(patch: RunPatch): Assignment[] {
   if (patch.startedAt !== undefined) out.push(['started_at = ?', patch.startedAt]);
   if (patch.finishedAt !== undefined) out.push(['finished_at = ?', patch.finishedAt]);
   if (patch.currentStepId !== undefined) out.push(['current_step_id = ?', patch.currentStepId]);
-  if (patch.stopReason !== undefined) out.push(['stop_reason = ?', patch.stopReason]);
+  if (patch.stopReason !== undefined) out.push(['stop_reason = ?', storableTextOrNull(patch.stopReason)]);
   if (patch.parked !== undefined) out.push(['parked = ?', patch.parked ? 1 : 0]);
   if (patch.addDuplicateSignals !== undefined) {
     out.push(['duplicate_signals = duplicate_signals + ?', patch.addDuplicateSignals]);
@@ -153,7 +154,7 @@ function stepAssignments(patch: StepPatch): Assignment[] {
   if (patch.attempt !== undefined) out.push(['attempt = ?', patch.attempt]);
   if (patch.startedAt !== undefined) out.push(['started_at = ?', patch.startedAt]);
   if (patch.finishedAt !== undefined) out.push(['finished_at = ?', patch.finishedAt]);
-  if (patch.summary !== undefined) out.push(['summary = ?', patch.summary]);
+  if (patch.summary !== undefined) out.push(['summary = ?', storableTextOrNull(patch.summary)]);
   return out;
 }
 
@@ -182,8 +183,8 @@ export class RunRepository {
       playbook.version,
       JSON.stringify(playbook),
       run.signalId,
-      run.fingerprint,
-      run.title,
+      storableText(run.fingerprint),
+      storableText(run.title),
       run.createdAt,
     );
     const insertStep = this.prepare(
@@ -191,7 +192,7 @@ export class RunRepository {
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
     );
     playbook.steps.forEach((step, position) => {
-      insertStep.run(run.id, position, step.id, step.kind, step.title, stepOperator(step));
+      insertStep.run(run.id, position, step.id, step.kind, storableText(step.title), stepOperator(step));
     });
     return this.require(run.id);
   }

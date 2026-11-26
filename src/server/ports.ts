@@ -38,7 +38,10 @@ export interface StepContext {
   workdir: string | null;
 }
 
-/** Something an agent says is true. The engine records it as `claimed`, never `verified`. */
+/**
+ * Something an agent says is true. The engine records it as `claimed`, never
+ * `verified`, and as `simulated` when the executor that produced it is scripted.
+ */
 export interface Claim {
   label: string;
   detail: string;
@@ -56,6 +59,13 @@ export interface StepResult {
 
 export interface Executor {
   readonly harness: Harness;
+  /**
+   * true when the output is scripted rather than produced by a real session,
+   * whatever the harness is called. The engine then records everything it
+   * returns as `simulated`, never `claimed`. Left unset, an executor on the
+   * `simulated` harness counts as scripted and any other does not.
+   */
+  readonly synthetic?: boolean;
   /** Must reject with an AbortError-shaped error when `abort` fires. */
   run(ctx: StepContext, abort: AbortSignal): Promise<StepResult>;
 }
@@ -69,6 +79,13 @@ export interface CommandResult {
   /** true when nothing was executed (simulate mode). */
   dryRun: boolean;
   timedOut: boolean;
+  /**
+   * false when nothing was run although this is not a dry run: the command was
+   * refused, could not be started, or had nowhere to run. `exitCode` is then a
+   * code the runner made up, not one a process returned, and `output` says why.
+   * Left unset it means the command ran.
+   */
+  executed?: boolean;
 }
 
 export interface CommandOptions {

@@ -40,6 +40,8 @@ export function simulateStep(ctx: StepContext): StepResult {
 export function createSimulatedExecutor(stepDelayMs: number, harness: Harness = 'simulated'): Executor {
   return {
     harness,
+    // Scripted whatever it is called, so in simulate mode "claude" and "codex" are labelled honestly too.
+    synthetic: true,
     run: async (ctx, abort) => {
       await delay(stepDelayMs, abort);
       return simulateStep(ctx);
