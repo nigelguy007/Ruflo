@@ -94,7 +94,8 @@ export class RufloCoordination implements Coordination {
     } catch (error) {
       const message = errorMessage(error);
       this.log.warn('Ruflo routing failed; using the large model', { error: message });
-      return { tier: 3, reason: `Ruflo could not route this task (${message.slice(0, MAX_REASON_ERROR)}), so the large model is used.` };
+      const shown = message.slice(0, MAX_REASON_ERROR);
+      return { tier: 3, reason: `Ruflo could not route this task (${shown}), so the large model is used.` };
     }
   }
 
