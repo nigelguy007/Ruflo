@@ -1,4 +1,5 @@
 import type { Run } from '../../../shared/types';
+import { InlineText } from '../lib/inline';
 import { Link, runPath } from '../lib/router';
 import { RUN_STATUS } from '../lib/status';
 import { StatusTag, TimeAgo } from '../lib/ui';
@@ -18,7 +19,9 @@ export function StoppedRuns({ runs }: StoppedRunsProps) {
             <Link to={runPath(run.id)} className="stopped__title">
               {run.title}
             </Link>
-            <p className="stopped__reason">{run.stopReason ?? 'No reason was recorded.'}</p>
+            <p className="stopped__reason">
+              <InlineText text={run.stopReason ?? 'No reason was recorded.'} />
+            </p>
           </div>
           <p className="stopped__meta">
             {run.playbookName}

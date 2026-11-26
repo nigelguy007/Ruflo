@@ -35,10 +35,14 @@ const NAV_ITEMS: readonly NavItem[] = [
   { section: 'settings', to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
+/**
+ * The update stream's state. Deliberately never called "live": next to the
+ * mode, "live" must only ever mean that operators touch real code.
+ */
 const STREAM_VIEW: Record<StreamStatus, StatusView> = {
-  open: { label: 'Live', lamp: 'lunar' },
+  open: { label: 'Connected', lamp: 'lunar' },
   connecting: { label: 'Connecting', lamp: 'off' },
-  retrying: { label: 'Offline, retrying', lamp: 'stop' },
+  retrying: { label: 'Reconnecting', lamp: 'stop' },
   unauthorized: { label: 'Locked', lamp: 'stop' },
 };
 
@@ -111,12 +115,15 @@ export function NavRail({ route }: NavRailProps) {
       <div className="rail__foot">
         <p className="rail__status" data-lamp={stream.lamp}>
           <Lamp state={stream.lamp} live={streamStatus === 'open'} />
-          <span className="rail__status-text">{stream.label}</span>
+          <span className="rail__status-text">
+            <span className="visually-hidden">Updates from the server: </span>
+            {stream.label}
+          </span>
         </p>
         {settings && (
           <p className="rail__mode">
             <span className="visually-hidden">Mode: </span>
-            {settings.mode === 'simulate' ? 'Simulate' : 'Live mode'}
+            {settings.mode === 'simulate' ? 'Simulate mode' : 'Live mode'}
           </p>
         )}
         <p className="rail__clock">

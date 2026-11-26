@@ -1,6 +1,7 @@
 import type { Run, RunStatus } from '../../../shared/types';
 import { api } from '../lib/api';
 import { durationBetween, plural, useNow } from '../lib/format';
+import { InlineText } from '../lib/inline';
 import { Link, RUN_STATUSES, runPath } from '../lib/router';
 import { RUN_STATUS, isActiveRun } from '../lib/status';
 import { EmptyState, ErrorState, LoadingState, StaleNotice, StatusTag, TimeAgo } from '../lib/ui';
@@ -68,7 +69,11 @@ function RunRow({ run, now }: RunRowProps) {
             </>
           )}
         </p>
-        {run.stopReason && <p className="run-row__reason">{run.stopReason}</p>}
+        {run.stopReason && (
+          <p className="run-row__reason">
+            <InlineText text={run.stopReason} />
+          </p>
+        )}
       </div>
       <div className="run-row__track">
         <MiniTrack steps={run.steps} />

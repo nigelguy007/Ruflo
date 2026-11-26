@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import type { FormEvent } from 'react';
 import type { Decision, Verdict } from '../../../shared/types';
+import { InlineText } from '../lib/inline';
 import { Link, runPath } from '../lib/router';
 import { Lamp, TimeAgo } from '../lib/ui';
 import { CheckIcon, CrossIcon } from '../shell/icons';
@@ -50,7 +51,7 @@ export function DecisionCard({ decision, note, onNoteChange, submitting, problem
 
       <div className="decision__ask">
         <h2 id={questionId} className="decision__question">
-          {decision.question}
+          <InlineText text={decision.question} />
         </h2>
         <p className="decision__run">
           <span className="eyebrow">Run</span>

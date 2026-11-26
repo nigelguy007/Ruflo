@@ -1,4 +1,5 @@
 import type { Evidence, EvidenceKind } from '../../../shared/types';
+import { InlineText } from '../lib/inline';
 import { EVIDENCE_KIND, EVIDENCE_ORDER } from '../lib/status';
 import './inbox.css';
 
@@ -20,7 +21,20 @@ function verdictOf(ok: boolean | null): VerdictView {
   return { word: 'Note', tone: 'info' };
 }
 
-function VerdictMark({ tone }: { tone: VerdictView['tone'] }) {
+interface VerdictMarkProps {
+  tone: VerdictView['tone'];
+  kind: EvidenceKind;
+}
+
+/** A check or a cross only where something stands behind it: simulated rows get a broken ring. */
+function VerdictMark({ tone, kind }: VerdictMarkProps) {
+  if (kind === 'simulated') {
+    return (
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="2.4 2" />
+      </svg>
+    );
+  }
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
       {tone === 'for' && <path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" strokeWidth="2" />}
@@ -30,11 +44,20 @@ function VerdictMark({ tone }: { tone: VerdictView['tone'] }) {
   );
 }
 
+interface KindBadgeProps {
+  kind: EvidenceKind;
+  /** An empty group gets a hollow badge: nothing is there to vouch for. */
+  empty: boolean;
+}
+
 /** Square for the engine, circle for an agent, broken outline for a simulation: the step shapes again. */
-function KindBadge({ kind }: { kind: EvidenceKind }) {
+function KindBadge({ kind, empty }: KindBadgeProps) {
   return (
     <svg className="evidence__badge" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-      {kind === 'verified' && (
+      {kind === 'verified' && empty && (
+        <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 2.5" />
+      )}
+      {kind === 'verified' && !empty && (
         <>
           <rect x="3" y="3" width="18" height="18" rx="2.5" fill="currentColor" />
           <path d="M7.5 12.4 10.7 15.6 16.6 8.8" fill="none" stroke="var(--ink-1)" strokeWidth="2.2" />
@@ -56,6 +79,16 @@ function KindBadge({ kind }: { kind: EvidenceKind }) {
   );
 }
 
+/** Command evidence ("$ npm test", then the exit line and output) keeps its lines and its monospace. */
+function EvidenceDetail({ detail }: { detail: string }) {
+  if (detail.startsWith('$ ')) return <pre className="evidence__detail evidence__detail--command">{detail}</pre>;
+  return (
+    <p className="evidence__detail">
+      <InlineText text={detail} />
+    </p>
+  );
+}
+
 interface EvidenceGroupProps {
   kind: EvidenceKind;
   items: Evidence[];
@@ -64,9 +97,9 @@ interface EvidenceGroupProps {
 function EvidenceGroup({ kind, items }: EvidenceGroupProps) {
   const view = EVIDENCE_KIND[kind];
   return (
-    <section className="evidence" data-kind={kind} aria-label={view.title}>
+    <section className="evidence" data-kind={kind} data-empty={items.length === 0 || undefined} aria-label={view.title}>
       <header className="evidence__head">
-        <KindBadge kind={kind} />
+        <KindBadge kind={kind} empty={items.length === 0} />
         <h3 className="evidence__title">{view.title}</h3>
         <span className="evidence__count" aria-label={`${items.length} items`}>
           {items.length}
@@ -82,12 +115,14 @@ function EvidenceGroup({ kind, items }: EvidenceGroupProps) {
             return (
               <li key={item.id} className="evidence__item" data-tone={verdict.tone}>
                 <span className="evidence__verdict">
-                  <VerdictMark tone={verdict.tone} />
+                  <VerdictMark tone={verdict.tone} kind={kind} />
                   {verdict.word}
                 </span>
                 <div className="evidence__text">
-                  <p className="evidence__label">{item.label}</p>
-                  {item.detail && <p className="evidence__detail">{item.detail}</p>}
+                  <p className="evidence__label">
+                    <InlineText text={item.label} />
+                  </p>
+                  {item.detail && <EvidenceDetail detail={item.detail} />}
                 </div>
                 <span className="evidence__step mono" title="The step that produced this">
                   {item.stepId}

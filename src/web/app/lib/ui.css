@@ -157,6 +157,18 @@
   .external { min-height: 44px; }
 }
 
+/* A `code` span inside server prose (lib/inline.tsx); keeps the colour of its sentence. */
+.inline-code {
+  padding: 0.05em 0.35em;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ink-0) 60%, transparent);
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .mention {
   padding: 0 4px;
   border-radius: 3px;

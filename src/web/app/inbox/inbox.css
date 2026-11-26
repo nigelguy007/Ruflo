@@ -212,6 +212,12 @@
   background: var(--hatch);
 }
 
+.evidence[data-kind='verified'][data-empty] {
+  --kind-ink: var(--text-dim);
+  border: 1px dashed var(--rule-strong);
+  background: none;
+}
+
 .evidence__head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -278,9 +284,24 @@
 .evidence[data-kind='verified'] [data-tone='for'] .evidence__verdict { color: var(--clear-ink); }
 .evidence__item[data-tone='against'] .evidence__verdict { color: var(--stop-ink); }
 .evidence__item[data-tone='info'] .evidence__verdict { color: var(--text-quiet); }
+.evidence[data-kind='simulated'] .evidence__item { background: none; }
+.evidence[data-kind='simulated'] .evidence__item .evidence__verdict { color: var(--text-quiet); }
 .evidence__text { display: grid; gap: 2px; min-width: 0; }
 .evidence__label { color: var(--text); font-weight: 500; }
-.evidence__detail { color: var(--text-dim); font-size: var(--text-sm); }
+.evidence__detail { margin: 0; color: var(--text-dim); font-size: var(--text-sm); white-space: pre-line; }
+
+.evidence__detail--command {
+  margin-top: 4px;
+  padding: 6px 9px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink-0) 70%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .evidence__step { color: var(--text-quiet); font-size: var(--text-xs); }
 
 @container evidence (max-width: 30rem) {

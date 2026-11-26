@@ -108,6 +108,8 @@
 body {
   min-width: 320px;
   overflow-wrap: break-word;
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'calt' 0;
   background: var(--night), var(--ink-0);
   background-attachment: fixed;
 }

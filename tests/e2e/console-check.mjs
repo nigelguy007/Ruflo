@@ -32,6 +32,7 @@ const PAGES = [
   { name: 'runs', path: '/app/runs', ready: '.run-row' },
   { name: 'run', path: '/app/runs/run_7f3a91', ready: '.track__step' },
   { name: 'run-failed', path: '/app/runs/run_5d17e8', ready: '.track__step' },
+  { name: 'run-running', path: '/app/runs/run_c21e04', ready: '.track__step' },
   { name: 'signals', path: '/app/signals', ready: '.signal-row' },
   { name: 'playbooks', path: '/app/playbooks', ready: '.playbook' },
   { name: 'settings', path: '/app/settings', ready: '.pause' },
@@ -222,6 +223,21 @@ async function selfTest(browser) {
   await page.evaluate(() => document.getElementById('contrast-canary')?.remove());
   if (!caught) fail('self-test', 'the contrast audit missed a planted 1.3:1 text');
   else notes.push('contrast audit self-test: a planted 1.3:1 text was caught');
+  // Barlow's ligatures would draw "--squash" with one dash; two hyphens must be two hyphens wide.
+  const widths = await page.evaluate(() => {
+    const measure = (text) => {
+      const span = document.createElement('span');
+      span.textContent = text;
+      span.style.cssText = 'position:absolute;white-space:nowrap';
+      document.querySelector('.page').append(span);
+      const width = span.getBoundingClientRect().width;
+      span.remove();
+      return width;
+    };
+    return { one: measure('-'), two: measure('--') };
+  });
+  if (widths.two < widths.one * 1.9) fail('self-test', `"--" renders ${widths.two.toFixed(1)}px wide, one "-" is ${widths.one.toFixed(1)}px: a ligature is joining them`);
+  else notes.push(`ligatures off: "--" is ${widths.two.toFixed(1)}px, "-" is ${widths.one.toFixed(1)}px`);
   await context.close();
 }
 

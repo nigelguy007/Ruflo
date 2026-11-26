@@ -1,4 +1,5 @@
 import type { Operator, Run } from '../../../shared/types';
+import { InlineText } from '../lib/inline';
 import { Link, runPath } from '../lib/router';
 import { OPERATOR_STATUS } from '../lib/status';
 import { StatusTag } from '../lib/ui';
@@ -41,7 +42,9 @@ export function OperatorRoad({ operator, run }: OperatorRoadProps) {
         {occupied ? (
           <p className="road__load">
             <span className="eyebrow">Now</span>
-            <span className="road__activity">{operator.currentActivity ?? 'Working on a run.'}</span>
+            <span className="road__activity">
+              <InlineText text={operator.currentActivity ?? 'Working on a run.'} />
+            </span>
             {operator.currentRunId && (
               <Link to={runPath(operator.currentRunId)} className="road__run">
                 {run?.title ?? `Run ${operator.currentRunId}`}
@@ -49,7 +52,9 @@ export function OperatorRoad({ operator, run }: OperatorRoadProps) {
             )}
           </p>
         ) : (
-          <p className="road__empty">{operator.currentActivity ?? idleLine(operator)}</p>
+          <p className="road__empty">
+            <InlineText text={operator.currentActivity ?? idleLine(operator)} />
+          </p>
         )}
       </div>
     </li>

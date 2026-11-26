@@ -1,4 +1,5 @@
 import type { Operator, Step } from '../../../shared/types';
+import { InlineText } from '../lib/inline';
 import { STEP_KIND_LABEL } from '../lib/status';
 import { StepGlyph } from '../runs/StepGlyph';
 
@@ -20,7 +21,9 @@ function StepNotes({ step, operators }: StepNotesProps) {
   if (step.kind === 'agent') {
     return (
       <>
-        <p className="track__summary">{step.instruction}</p>
+        <p className="track__summary">
+          <InlineText text={step.instruction} />
+        </p>
         {(step.handoffTo || step.retries) && (
           <p className="track__status">
             {step.handoffTo && (

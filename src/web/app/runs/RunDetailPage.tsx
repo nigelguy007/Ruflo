@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Operator, RunDetail, StreamEvent } from '../../../shared/types';
 import { api, describeError, toApiError } from '../lib/api';
 import { durationBetween, formatDateTime, formatFull, plural, useNow } from '../lib/format';
+import { InlineText } from '../lib/inline';
 import { Link } from '../lib/router';
 import { RUN_STATUS, isActiveRun } from '../lib/status';
 import { EmptyState, ErrorState, LoadingState, SectionHead, StaleNotice, StatusTag } from '../lib/ui';
@@ -175,12 +176,12 @@ export function RunDetailPage({ id }: RunDetailPageProps) {
 
       {currentRun.stopReason && (
         <p className="notice notice--stop run-reason">
-          <strong>Why it stopped.</strong> {currentRun.stopReason}
+          <strong>Why it stopped.</strong> <InlineText text={currentRun.stopReason} />
         </p>
       )}
       {openDecision && (
         <p className="notice notice--caution run-reason">
-          <strong>Stopped at a gate.</strong> “{openDecision.question}” <Link to="/">Answer it in the Inbox</Link>
+          <strong>Stopped at a gate.</strong> “<InlineText text={openDecision.question} />” <Link to="/">Answer it in the Inbox</Link>
         </p>
       )}
 

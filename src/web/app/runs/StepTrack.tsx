@@ -1,5 +1,6 @@
 import type { Operator, StepRun } from '../../../shared/types';
 import { durationBetween } from '../lib/format';
+import { InlineText } from '../lib/inline';
 import { STEP_KIND_LABEL, STEP_STATUS } from '../lib/status';
 import { StepGlyph } from './StepGlyph';
 
@@ -61,7 +62,11 @@ export function StepTrack({ steps, currentStepId, operators, now }: StepTrackPro
                   </>
                 )}
               </p>
-              {step.summary && <p className="track__summary">{step.summary}</p>}
+              {step.summary && (
+                <p className="track__summary">
+                  <InlineText text={step.summary} />
+                </p>
+              )}
             </div>
           </li>
         );

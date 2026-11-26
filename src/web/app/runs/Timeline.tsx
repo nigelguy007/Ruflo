@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Artifact, Operator, TimelineEvent } from '../../../shared/types';
 import { formatClock, formatFull, shortHash } from '../lib/format';
+import { withCode } from '../lib/inline';
 import { TIMELINE_KIND_LABEL } from '../lib/status';
 import { ExternalLink } from '../lib/ui';
 import { ArrowIcon } from '../shell/icons';
@@ -95,7 +96,9 @@ export function Timeline({ events, operators }: TimelineProps) {
                 <span className="entry__party">{nameOf(target, operators)}</span>
               </p>
             )}
-            <p className="entry__text">{withMentions(event.text, knownHandles(event, operators))}</p>
+            <p className="entry__text">
+              {withCode(event.text, (part) => withMentions(part, knownHandles(event, operators)))}
+            </p>
             {artifact && (
               <p className="entry__artifact">
                 <span className="entry__artifact-label">{artifact.label}</span>
