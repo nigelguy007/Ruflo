@@ -45,6 +45,13 @@ export function ok<T>(c: Context, data: T, meta?: Meta): Response {
   return send(c, meta === undefined ? envelope : { ...envelope, meta }, 200);
 }
 
+/** The one wording for every "slow down" answer, with the wait the client should honour. */
+export function rateLimited(c: Context, retryAfterSeconds: number): Response {
+  return fail(c, 'rate_limited', 'Too many requests. Wait a moment, then try again.', {
+    'Retry-After': String(retryAfterSeconds),
+  });
+}
+
 export function fail(
   c: Context,
   code: ErrorCode,

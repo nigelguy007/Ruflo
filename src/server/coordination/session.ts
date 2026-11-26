@@ -12,13 +12,18 @@ import { TailBuffer } from '../executors/tail-buffer.js';
 /**
  * Starts the Ruflo MCP server as a child process and talks to it over stdio.
  * The child gets a minimal environment and a working directory Switchyard
- * owns, so it cannot read the server's secrets or write into a checkout.
+ * owns. It still runs as the same operating-system user, so this limits
+ * accidents, not a hostile package: the version is pinned below, and
+ * SWITCHYARD_COORDINATION=local keeps npm code from running at start-up.
  */
 
 export interface RufloCommand {
   command: string;
   args: readonly string[];
 }
+
+/** The version Switchyard was tested against; `ruflo@latest` would run whatever the registry serves today. */
+export const RUFLO_VERSION = '3.80.8';
 
 /**
  * `--prefer-offline` lets npx use its cached copy without asking the registry
@@ -27,7 +32,7 @@ export interface RufloCommand {
  */
 export const DEFAULT_RUFLO_COMMAND: RufloCommand = {
   command: 'npx',
-  args: ['-y', '--prefer-offline', 'ruflo@latest', 'mcp', 'start'],
+  args: ['-y', '--prefer-offline', `ruflo@${RUFLO_VERSION}`, 'mcp', 'start'],
 };
 
 /** Tools Switchyard calls; a server without them is treated as not started. */

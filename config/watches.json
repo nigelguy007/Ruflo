@@ -27,7 +27,7 @@
     "match": {},
     "playbookId": "review-pull-request",
     "enabled": true,
-    "dedupeMinutes": 0
+    "dedupeMinutes": 60
   },
   {
     "id": "manual-error",

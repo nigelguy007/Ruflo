@@ -6,7 +6,7 @@ import { createLogger } from '../../../src/server/logger.js';
 import { makeConfig, makeTempDir } from '../executors/helpers.js';
 
 /**
- * Talks to the real Ruflo MCP server (`npx -y --prefer-offline ruflo@latest mcp start`).
+ * Talks to the real Ruflo MCP server (`npx -y --prefer-offline ruflo@<pinned version> mcp start`).
  * Opt in with RUFLO_LIVE=1; it needs npx and either a cached ruflo or the registry.
  * Timings are written to stderr through the server's own JSON logger.
  */

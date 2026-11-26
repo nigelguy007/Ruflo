@@ -278,7 +278,7 @@
             </div>
             <div>
               <h3>Every action goes into the ledger</h3>
-              <p>Each entry is appended to a log and carries the hash of the entry before it. If anyone changes or removes an entry, the chain no longer matches, and you can check the chain yourself.</p>
+              <p>Each entry is appended to a log and carries the hash of the entry before it. If someone edits an entry in the middle, the chain no longer matches, and you can check the chain yourself. The check catches accidents and careless edits. It does not stop a person who can write to the database file from rewriting the whole chain.</p>
               <div class="ledger-wrap">
                 <table class="ledger">
                   <caption class="vh">An excerpt of five ledger entries, in which each prevHash equals the hash of the entry above it.</caption>
@@ -333,7 +333,7 @@
               <li>No marketplace.</li>
               <li>No multi-user accounts yet.</li>
             </ul>
-            <p class="early"><span class="lamp" data-state="caution"></span><span><strong>Live mode is early and unproven.</strong> It is the mode in which operators work in a real repository checkout and command steps really run.</span></p>
+            <p class="early"><span class="lamp" data-state="caution"></span><span><strong>Live mode is early and unproven.</strong> It is the mode in which operators work in a real repository checkout and command steps really run. Agent sessions and test commands then run with your account's privileges and are not sandboxed, so point it only at repositories and signal sources you trust.</span></p>
           </div>
         </div>
       </section>

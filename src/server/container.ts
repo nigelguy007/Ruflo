@@ -10,6 +10,7 @@ import type { EventBus } from './engine/bus.js';
 import { loadCatalog } from './engine/catalog.js';
 import type { Catalog } from './engine/catalog.js';
 import { createEngine } from './engine/index.js';
+import { startupWarnings } from './warnings.js';
 import type { Engine } from './engine/index.js';
 import { createLedger } from './engine/ledger.js';
 import { createScheduler } from './engine/scheduler.js';
@@ -93,6 +94,7 @@ export async function createContainer(
   const clock = overrides.clock ?? systemClock;
   const newId = overrides.newId ?? randomId;
   const core = await openCore(config, log, overrides);
+  for (const warning of startupWarnings(config, core.catalog.operators)) log.warn(warning);
   const bus = createEventBus(log);
   const engine = createEngine({
     config,

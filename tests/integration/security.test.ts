@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { MAX_BODY_BYTES } from '../../src/shared/api.js';
 import { SECURITY_HEADERS } from '../../src/server/http/security.js';
 import { FakeTime } from '../unit/engine/support.js';
+import type { SignalAdapter } from '../../src/server/ports.js';
 import { call, peer, startServer, TOKEN } from './support.js';
 import type { TestServer, TestServerOptions } from './support.js';
 
@@ -177,19 +178,74 @@ describe('rate limits', () => {
     expect(later.status).toBe(200);
   });
 
-  test('gives webhooks a budget of their own, 60 a minute', async () => {
-    const time = new FakeTime();
-    const { app } = await boot({ clock: time.clock });
-    const env = peer('198.51.100.7');
+  test('are not used up by a flood of wrong tokens from the same address', async () => {
+    const { app } = await boot({ config: { token: TOKEN } });
+    const env = peer('198.51.100.20');
 
-    for (let i = 0; i < 60; i += 1) {
-      expect((await call(app, '/api/hooks/github', { body: {}, env })).status).toBe(404);
+    const guesses: number[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      guesses.push((await call(app, '/api/overview', { env, headers: { authorization: 'Bearer wrong' } })).status);
     }
-    const limited = await call(app, '/api/hooks/github', { body: {}, env });
-    const consoleRead = await call(app, '/api/health', { env });
+    const real = await call(app, '/api/overview', { env, headers: { authorization: `Bearer ${TOKEN}` } });
 
-    expect(limited.status).toBe(429);
-    expect(limited.headers.get('retry-after')).toBe('1');
-    expect(consoleRead.status).toBe(200);
+    expect(guesses.slice(0, 30).every((status) => status === 401)).toBe(true);
+    expect(guesses.slice(30).every((status) => status === 429)).toBe(true);
+    expect(real.status).toBe(200);
   });
 });
+
+describe('proxies and tunnels without a token', () => {
+  const forwarded = [
+    ['x-forwarded-for', '198.51.100.7'],
+    ['x-forwarded-host', 'switchyard.example'],
+    ['forwarded', 'for=198.51.100.7'],
+    ['x-real-ip', '198.51.100.7'],
+    ['cf-connecting-ip', '198.51.100.7'],
+  ] as const;
+
+  test.each(forwarded)('refuse a request carrying %s, even with a loopback Host', async (name, value) => {
+    const { app, container } = await boot();
+
+    const read = await call(app, '/api/overview', { headers: { host: '127.0.0.1:4310', [name]: value } });
+    const write = await call(app, '/api/signals/manual', {
+      body: { title: 'from the internet' },
+      headers: { host: '127.0.0.1:4310', [name]: value },
+    });
+
+    expect([read.status, write.status]).toEqual([403, 403]);
+    expect(read.envelope.error?.message).toContain('SWITCHYARD_TOKEN');
+    expect(container.store.signals.count()).toBe(0);
+  });
+
+  test('allow a direct request, and allow proxy headers once a token is set', async () => {
+    const direct = await boot();
+    const plain = await call(direct.app, '/api/overview', { headers: { host: '127.0.0.1:4310' } });
+    await direct.close();
+
+    const { app } = await boot({ config: { token: TOKEN } });
+    const proxied = await call(app, '/api/overview', {
+      headers: { 'x-forwarded-for': '198.51.100.7', authorization: `Bearer ${TOKEN}` },
+    });
+
+    expect(plain.status).toBe(200);
+    expect(proxied.status).toBe(200);
+  });
+
+  test('do not stop signed webhooks arriving through a tunnel', async () => {
+    const adapters = { sentry: okAdapter('sentry'), github: okAdapter('github') };
+    const { app } = await boot({ config: { githubSecret: 'github-webhook-secret' }, adapters });
+
+    const delivery = await call(app, '/api/hooks/github', {
+      body: { zen: 'ping' },
+      headers: { 'x-forwarded-for': '140.82.112.3', host: 'switchyard.example' },
+    });
+
+    expect(delivery.status).toBe(200);
+  });
+});
+
+/** An adapter that accepts every signature and ignores every delivery. */
+function okAdapter(source: 'sentry' | 'github'): SignalAdapter {
+  return { source, verify: () => true, normalise: () => null };
+}
+

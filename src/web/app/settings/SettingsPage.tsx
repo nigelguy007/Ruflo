@@ -86,7 +86,8 @@ function LedgerCheckResult({ check }: { check: LedgerCheck }) {
       <p className="ledger__result" data-ok="true" role="status">
         <Lamp state="clear" />
         <span>
-          <strong>Intact.</strong> {entries}; every hash follows from the one before it.
+          <strong>Intact.</strong> {entries}; every hash follows from the one before it. This catches accidents and
+          careless edits. Someone who can write to the database file could rewrite the whole chain.
         </span>
       </p>
     );

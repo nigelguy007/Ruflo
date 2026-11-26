@@ -15,12 +15,16 @@ import { fail, GENERIC_INTERNAL_MESSAGE, HttpError } from './envelope.js';
 import { registerHookRoutes } from './hooks.js';
 import type { HookSource } from './hooks.js';
 import { createRateLimiter } from './rate-limit.js';
+import type { RateLimiter } from './rate-limit.js';
 import { bearerAuth, loopbackGuard, rateLimit, securityHeaders } from './security.js';
 import { createStaticHandler } from './static.js';
 import { DEFAULT_HEARTBEAT_MS, DEFAULT_MAX_STREAMS, registerStreamRoute } from './stream.js';
 
 export const API_REQUESTS_PER_MINUTE = 240;
+/** Deliveries with a valid signature, per peer address. */
 export const HOOK_REQUESTS_PER_MINUTE = 60;
+/** Wrong tokens and bad signatures, per peer address; they never touch the budgets above. */
+export const FAILED_ATTEMPTS_PER_MINUTE = 30;
 const MAX_LOGGED_PATH = 200;
 
 export interface AppDeps {
@@ -37,18 +41,30 @@ export interface AppDeps {
   maxStreams?: number;
 }
 
-function installGuards(app: Hono, deps: AppDeps): void {
+interface Limiters {
+  api: RateLimiter;
+  authFailures: RateLimiter;
+  hooks: { accepted: RateLimiter; rejected: RateLimiter };
+}
+
+function createLimiters(deps: AppDeps): Limiters {
   const now = (): number => (deps.clock ?? systemClock)().getTime();
+  return {
+    api: createRateLimiter({ perMinute: API_REQUESTS_PER_MINUTE, now }),
+    authFailures: createRateLimiter({ perMinute: FAILED_ATTEMPTS_PER_MINUTE, now }),
+    hooks: {
+      accepted: createRateLimiter({ perMinute: HOOK_REQUESTS_PER_MINUTE, now }),
+      rejected: createRateLimiter({ perMinute: FAILED_ATTEMPTS_PER_MINUTE, now }),
+    },
+  };
+}
+
+/** Order matters: prove who is asking first, and only then spend that client's budget. */
+function installGuards(app: Hono, deps: AppDeps, limiters: Limiters): void {
   app.use('*', securityHeaders());
   if (deps.config.token === null) app.use('*', loopbackGuard());
-  app.use(
-    '/api/*',
-    rateLimit(
-      createRateLimiter({ perMinute: API_REQUESTS_PER_MINUTE, now }),
-      createRateLimiter({ perMinute: HOOK_REQUESTS_PER_MINUTE, now }),
-    ),
-  );
-  if (deps.config.token !== null) app.use('/api/*', bearerAuth(deps.config.token));
+  else app.use('/api/*', bearerAuth(deps.config.token, limiters.authFailures));
+  app.use('/api/*', rateLimit(limiters.api));
   app.use(
     '/api/*',
     bodyLimit({
@@ -87,7 +103,8 @@ function installFallbacks(app: Hono, deps: AppDeps): void {
 /** The whole HTTP surface of src/shared/api.ts, plus the built console. */
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
-  installGuards(app, deps);
+  const limiters = createLimiters(deps);
+  installGuards(app, deps, limiters);
   registerApiRoutes(app, {
     engine: deps.engine,
     mode: deps.config.mode,
@@ -99,6 +116,7 @@ export function createApp(deps: AppDeps): Hono {
     adapters: deps.adapters,
     secrets: { sentry: deps.config.sentrySecret, github: deps.config.githubSecret },
     log: deps.log,
+    limits: limiters.hooks,
   });
   registerStreamRoute(app, {
     bus: deps.bus,

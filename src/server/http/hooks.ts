@@ -2,7 +2,9 @@ import type { Context, Hono } from 'hono';
 import type { SignalResult } from '../../shared/types.js';
 import type { Engine } from '../engine/index.js';
 import type { Logger, SignalAdapter } from '../ports.js';
-import { fail, ok } from './envelope.js';
+import { fail, ok, rateLimited } from './envelope.js';
+import type { RateLimiter } from './rate-limit.js';
+import { clientAddress } from './security.js';
 
 export type HookSource = 'sentry' | 'github';
 
@@ -12,6 +14,13 @@ export interface HookRouteDeps {
   /** null when the provider is not configured; its route then does not exist. */
   secrets: Readonly<Record<HookSource, string | null>>;
   log: Logger;
+  /**
+   * Two budgets per peer address. `accepted` is spent only by deliveries with a
+   * valid signature; `rejected` only by those without one. Junk can therefore
+   * never use up the budget a real provider needs, even when a tunnel makes
+   * every sender share one address.
+   */
+  limits: { accepted: RateLimiter; rejected: RateLimiter };
 }
 
 const IGNORED: SignalResult = { signal: null, runs: [], joined: [] };
@@ -43,10 +52,15 @@ async function receive(c: Context, source: HookSource, deps: HookRouteDeps): Pro
   const adapter = deps.adapters[source];
   const raw = await c.req.text();
   const headers = lowerCasedHeaders(c.req.raw.headers);
+  const peer = clientAddress(c);
   if (!adapter.verify(raw, headers, secret)) {
     deps.log.warn('webhook signature rejected', { source });
+    const penalty = deps.limits.rejected.take(peer);
+    if (!penalty.allowed) return rateLimited(c, penalty.retryAfterSeconds);
     return fail(c, 'unauthorized', `The ${source} signature does not match this server's secret.`);
   }
+  const budget = deps.limits.accepted.take(peer);
+  if (!budget.allowed) return rateLimited(c, budget.retryAfterSeconds);
   const body = parseJson(raw);
   if (!body.ok) return fail(c, 'bad_request', 'The delivery body is not valid JSON.');
   const normalised = adapter.normalise(body.value, headers);

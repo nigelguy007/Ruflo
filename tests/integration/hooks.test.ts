@@ -3,7 +3,8 @@ import type { SignalResult } from '../../src/shared/types.js';
 import type { HookSource } from '../../src/server/http/index.js';
 import type { NormalisedSignal, SignalAdapter } from '../../src/server/ports.js';
 import { hmacSha256Hex } from '../../src/server/signals/hmac.js';
-import { call, startServer, TOKEN } from './support.js';
+import { FakeTime } from '../unit/engine/support.js';
+import { call, peer, startServer, TOKEN } from './support.js';
 import type { TestServer, TestServerOptions } from './support.js';
 
 const SENTRY_SECRET = 'sentry-client-secret';
@@ -141,3 +142,51 @@ describe('webhooks', () => {
     expect(tampered.status).toBe(401);
   });
 });
+
+describe('webhook rate limits', () => {
+  const sender = peer('198.51.100.7');
+
+  test('a flood of unsigned deliveries cannot use up the budget of a signed one', async () => {
+    const time = new FakeTime();
+    const adapters = fakeAdapters();
+    const { app } = await boot({ config: configured, adapters, clock: time.clock });
+
+    adapters.github.accept = false;
+    const junk: number[] = [];
+    for (let i = 0; i < 40; i += 1) junk.push((await call(app, '/api/hooks/github', { body: {}, env: sender })).status);
+    adapters.github.accept = true;
+    const signed = await call(app, '/api/hooks/github', { body: { zen: 'ping' }, env: sender });
+
+    expect(junk.slice(0, 30).every((status) => status === 401)).toBe(true);
+    expect(junk.slice(30).every((status) => status === 429)).toBe(true);
+    expect(signed.status).toBe(200);
+  });
+
+  test('signed deliveries are limited to 60 a minute per sender, and the wait is honest', async () => {
+    const time = new FakeTime();
+    const { app } = await boot({ config: configured, adapters: fakeAdapters(), clock: time.clock });
+
+    for (let i = 0; i < 60; i += 1) {
+      expect((await call(app, '/api/hooks/github', { body: {}, env: sender })).status).toBe(200);
+    }
+    const limited = await call(app, '/api/hooks/github', { body: {}, env: sender });
+    const other = await call(app, '/api/hooks/github', { body: {}, env: peer('198.51.100.8') });
+    time.advance(Number(limited.headers.get('retry-after')) * 1_000);
+    const later = await call(app, '/api/hooks/github', { body: {}, env: sender });
+
+    expect(limited.status).toBe(429);
+    expect(limited.envelope.error?.code).toBe('rate_limited');
+    expect(other.status).toBe(200);
+    expect(later.status).toBe(200);
+  });
+
+  test('deliveries to a webhook that is not configured cost nothing', async () => {
+    const { app } = await boot();
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 80; i += 1) statuses.push((await call(app, '/api/hooks/github', { body: {}, env: sender })).status);
+
+    expect(new Set(statuses)).toEqual(new Set([404]));
+  });
+});
+
